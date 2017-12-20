@@ -21,6 +21,10 @@ pub enum Instr {
     Div(Addr, Addr, Addr),
     /// a = b % c
     Rem(Addr, Addr, Addr),
+    /// Jumps program execution by n instructions
+    Jump(i8),
+    /// Jumps program execution by n instructions if a is non zero, else it jumps by m instructions
+    CondJump(Addr, i8, i8),
     /// Constructs a tuple from a contiguous range of slots, a = (b..c)
     MkTup(Addr, Addr, Addr),
     /// Indexes a tuple a = b[c]
@@ -130,6 +134,18 @@ impl Program {
                         _ => return Err(EvalError {}),
                     };
                 }
+                &Jump(a) => {
+                    iptr += a as usize;
+                    continue;
+                }
+                &CondJump(a, b, c) => {
+                    if locals[a as usize] != I(0) {
+                        iptr += b as usize;
+                    } else {
+                        iptr += c as usize;
+                    }
+                    continue;
+                }
             }
             iptr += 1;
         }
@@ -199,6 +215,83 @@ impl<'a> Rem for &'a Val {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_cond_jump_false() {
+        use Val::*;
+        use Instr::*;
+
+        let program = Program {
+            defns: vec![
+                Defn {
+                    code: vec![
+                        Const(0, 0),
+                        Const(1, 1),
+                        Const(2, 2),
+                        CondJump(0, 1, 2),
+                        Return(Some(1)),
+                        Return(Some(2)),
+                    ],
+                    consts: vec![I(0), I(3), I(5)],
+                    local_count: 3,
+                },
+            ],
+            entry_point: 0,
+        };
+        assert_eq!(
+            program.eval(&mut std::io::empty(), &mut std::io::sink()),
+            Ok(I(5))
+        );
+    }
+
+    #[test]
+    fn test_cond_jump_true() {
+        use Val::*;
+        use Instr::*;
+
+        let program = Program {
+            defns: vec![
+                Defn {
+                    code: vec![
+                        Const(0, 0),
+                        Const(1, 1),
+                        Const(2, 2),
+                        CondJump(0, 1, 2),
+                        Return(Some(1)),
+                        Return(Some(2)),
+                    ],
+                    consts: vec![I(1), I(3), I(5)],
+                    local_count: 3,
+                },
+            ],
+            entry_point: 0,
+        };
+        assert_eq!(
+            program.eval(&mut std::io::empty(), &mut std::io::sink()),
+            Ok(I(3))
+        );
+    }
+
+    #[test]
+    fn test_jump() {
+        use Val::*;
+        use Instr::*;
+
+        let program = Program {
+            defns: vec![
+                Defn {
+                    code: vec![Jump(1), Const(0, 0), Const(0, 1), Return(Some(0))],
+                    consts: vec![I(3), I(5)],
+                    local_count: 2,
+                },
+            ],
+            entry_point: 0,
+        };
+        assert_eq!(
+            program.eval(&mut std::io::empty(), &mut std::io::sink()),
+            Ok(I(5))
+        );
+    }
 
     #[test]
     fn call_return() {
