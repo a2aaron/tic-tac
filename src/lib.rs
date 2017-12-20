@@ -22,8 +22,9 @@ pub enum Instr {
     /// a = b % c
     Rem(Addr, Addr, Addr),
     /// Jumps program execution by n instructions
-    Jump(i8),
-    /// Jumps program execution by n instructions if a is non zero, else it jumps by m instructions
+    Jump(i16),
+    /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
+    /// Note that a must be a boolean, otherwise the program is invalid.
     CondJump(Addr, i8, i8),
     /// Constructs a tuple from a contiguous range of slots, a = (b..c)
     MkTup(Addr, Addr, Addr),
@@ -139,12 +140,16 @@ impl Program {
                     continue;
                 }
                 &CondJump(a, b, c) => {
-                    if locals[a as usize] != I(0) {
-                        iptr += b as usize;
+                    if let Val::B(x) = locals[a as usize] {
+                        if x {
+                            iptr += b as usize;
+                        } else {
+                            iptr += c as usize;
+                        }
+                        continue;
                     } else {
-                        iptr += c as usize;
+                        return Err(EvalError {});
                     }
-                    continue;
                 }
             }
             iptr += 1;
@@ -232,7 +237,7 @@ mod tests {
                         Return(Some(1)),
                         Return(Some(2)),
                     ],
-                    consts: vec![I(0), I(3), I(5)],
+                    consts: vec![B(false), I(3), I(5)],
                     local_count: 3,
                 },
             ],
@@ -260,7 +265,7 @@ mod tests {
                         Return(Some(1)),
                         Return(Some(2)),
                     ],
-                    consts: vec![I(1), I(3), I(5)],
+                    consts: vec![B(true), I(3), I(5)],
                     local_count: 3,
                 },
             ],
@@ -271,6 +276,35 @@ mod tests {
             Ok(I(3))
         );
     }
+
+    #[test]
+    fn test_cond_jump_err() {
+        use Val::*;
+        use Instr::*;
+
+        let program = Program {
+            defns: vec![
+                Defn {
+                    code: vec![
+                        Const(0, 0),
+                        Const(1, 1),
+                        Const(2, 2),
+                        CondJump(0, 1, 2),
+                        Return(Some(1)),
+                        Return(Some(2)),
+                    ],
+                    consts: vec![I(0), I(3), I(5)],
+                    local_count: 3,
+                },
+            ],
+            entry_point: 0,
+        };
+        assert_eq!(
+            program.eval(&mut std::io::empty(), &mut std::io::sink()),
+            Err(EvalError {})
+        );
+    }
+
 
     #[test]
     fn test_jump() {
