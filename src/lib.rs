@@ -1,13 +1,14 @@
 use std::io::{Read, Write};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
+pub mod parse;
 mod parse_util;
 
 type Addr = u8;
 type AddrSize = u8;
 type FnId = u16;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instr {
     /// Loads a constant a = k[b]
     Const(Addr, Addr),
@@ -48,6 +49,7 @@ pub enum Val {
     C(FnId),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Defn {
     consts: Vec<Val>,
     code: Vec<Instr>,
@@ -55,6 +57,7 @@ pub struct Defn {
 }
 
 /// A piece of compiled code that's ready to be evaluated.
+#[derive(Debug, PartialEq)]
 pub struct Program {
     defns: Vec<Defn>,
     entry_point: FnId,
@@ -214,10 +217,11 @@ mod tests {
                         Const(0, 0),
                         Const(1, 1),
                         MkTup(0, 0, 1),
+                        Const(1, 2),
                         Call(0, 1, 0),
                         Return(Some(0)),
                     ],
-                    consts: vec![I(42), I(69)],
+                    consts: vec![I(42), I(69), C(1)],
                     local_count: 2,
                 },
                 Defn {
