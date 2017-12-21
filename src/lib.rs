@@ -140,16 +140,18 @@ impl Program {
                     continue;
                 }
                 &CondJump(a, b, c) => {
-                    if let Val::B(x) = locals[a as usize] {
-                        if x {
+                    match locals[a as usize] {
+                        B(true) => {
                             iptr += b as usize;
-                        } else {
+                        }
+                        B(false) => {
                             iptr += c as usize;
                         }
-                        continue;
-                    } else {
-                        return Err(EvalError {});
+                        _ => {
+                            return Err(EvalError {});
+                        }
                     }
+                    continue;
                 }
             }
             iptr += 1;
