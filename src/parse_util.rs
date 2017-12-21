@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub type ParseResult<'a, T> = Result<(Buffer<'a>, T), ParseError>;
 pub type ParseSuccess<'a> = Result<Buffer<'a>, ParseError>;
 
@@ -35,6 +37,14 @@ impl<'a> Buffer<'a> {
 
     pub fn trim(&self) -> Buffer<'a> {
         self.trim_left().trim_right()
+    }
+
+    pub fn end(&self) -> ParseSuccess<'a> {
+        if self.text.is_empty() {
+            Ok(*self)
+        } else {
+            Err(self.expected("end of input"))
+        }
     }
 
     pub fn space(&self) -> ParseSuccess<'a> {
@@ -98,32 +108,32 @@ impl<'a> Buffer<'a> {
         self.text.starts_with(prefix.as_ref())
     }
 
-    pub fn read_between(&self, begin: char, end: char) -> ParseResult<'a, &'a str> {
-        if !self.text.starts_with(begin) {
-            return Err(self.expected(format!("character '{}'", begin)));
-        }
-
-        let input = self.advance(begin.len_utf8());
-        if let Some(offset) = input.text.find(end) {
-            Ok((
-                input.advance(offset + end.len_utf8()),
-                &input.text[..offset],
-            ))
+    pub fn til<P: Fn(char) -> bool>(&self, pat: P) -> ParseResult<'a, &'a str> {
+        let idx = self.text.find(pat);
+        if let Some(offset) = idx {
+            Ok((self.advance(offset), &self.text[..offset]))
         } else {
-            let span = (self.col, self.col + self.text.len());
-            Err(ParseError::expected(
-                format!("closing '{}'", end),
-                self.row,
-                span,
-            ))
+            Ok((self.advance(self.text.len()), self.text))
         }
+    }
+
+    pub fn parse_til<T: FromStr, P: Fn(char) -> bool>(&self, pat: P) -> ParseResult<'a, T>
+    where
+        <T as FromStr>::Err: ::std::error::Error,
+    {
+        let (buf, text) = self.til(pat)?;
+        Ok((
+            buf,
+            text.parse().map_err(|err| {
+                self.expected(format!("error parsing token: {}, error {}", text, err))
+            })?,
+        ))
     }
 
     pub fn expected<S: Into<String>>(&self, message: S) -> ParseError {
         ParseError::expected(message, self.row, self.col)
     }
 }
-
 
 pub type Span = Option<(usize, usize)>;
 
@@ -163,8 +173,6 @@ impl IntoSpan for Option<()> {
         None
     }
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -374,46 +382,5 @@ mod test {
         };
 
         assert!(!heart.starts_with(HEART));
-    }
-
-    #[test]
-    fn test_read_between() {
-        let input = Buffer {
-            row: 0,
-            col: 0,
-            text: "<Hello>",
-        };
-
-        assert_eq!(
-            input.read_between('<', '>'),
-            Ok((
-                Buffer {
-                    row: 0,
-                    col: 7,
-                    text: "",
-                },
-                "Hello",
-            ))
-        );
-        assert!(input.read_between('<', '!').is_err());
-        assert!(input.read_between('!', '>').is_err());
-
-        let input = Buffer {
-            row: 0,
-            col: 0,
-            text: "\"Hello\"",
-        };
-
-        assert_eq!(
-            input.read_between('"', '"'),
-            Ok((
-                Buffer {
-                    row: 0,
-                    col: 7,
-                    text: "",
-                },
-                "Hello",
-            ))
-        );
     }
 }
