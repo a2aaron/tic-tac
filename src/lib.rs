@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
+mod parse_util;
+
 type Addr = u8;
 type AddrSize = u8;
 type FnId = u16;
