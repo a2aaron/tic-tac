@@ -256,32 +256,55 @@ impl PartialOrd for Val {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_cond_jump_false() {
-        use Val::*;
-        use Instr::*;
+    macro_rules! test_program {
+    (
+        name: $name:ident;
+        $(defn {
+            code: [$($instrs:expr),* $(,)*],
+            consts: [$($consts:expr),* $(,)*],
+            local_count: $count:expr,
+        },)*
+        result: $result:expr;
+    ) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn test_program() {
+                    use Val::*;
+                    use Instr::*;
+                    let program = Program {
+                        defns: vec![
+                        $(Defn {
+                            code: vec![$($instrs),*],
+                            consts: vec![$($consts),*],
+                            local_count: $count,
+                        })*],
+                        entry_point: 0,
+                    };
+                    assert_eq!(
+                        program.eval(&mut std::io::empty(), &mut std::io::sink()),
+                        $result
+                    );
+                }
+            }
+        }
+    }
 
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        Const(2, 2),
-                        CondJump(0, 1, 2),
-                        Return(Some(1)),
-                        Return(Some(2)),
-                    ],
-                    consts: vec![B(false), I(3), I(5)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: test_cond_jump_false;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
             ],
-            entry_point: 0,
-        };
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(5))
-        );
+            consts: [B(false), I(3), I(5)],
+            local_count: 3,
+        },
+        result: Ok(I(5));
     }
 
     #[test]
