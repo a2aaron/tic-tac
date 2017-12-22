@@ -136,26 +136,28 @@ impl Program {
                     };
                 }
                 &Jump(a) => {
-                    iptr += a as usize;
+                    iptr = sum(iptr, a as isize);
                     continue;
                 }
                 &CondJump(a, b, c) => {
                     match locals[a as usize] {
-                        B(true) => {
-                            iptr += b as usize;
-                        }
-                        B(false) => {
-                            iptr += c as usize;
-                        }
-                        _ => {
-                            return Err(EvalError {});
-                        }
+                        B(true) => iptr = sum(iptr, b as isize),
+                        B(false) => iptr = sum(iptr, c as isize),
+                        _ => return Err(EvalError {}),
                     }
                     continue;
                 }
             }
             iptr += 1;
         }
+    }
+}
+
+fn sum(a: usize, b: isize) -> usize {
+    if b > 0 {
+        a + b as usize
+    } else {
+        a - (b.abs() as usize)
     }
 }
 
@@ -307,7 +309,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_jump() {
         use Val::*;
@@ -326,6 +327,34 @@ mod tests {
         assert_eq!(
             program.eval(&mut std::io::empty(), &mut std::io::sink()),
             Ok(I(5))
+        );
+    }
+
+    #[test]
+    fn test_backwards_jump() {
+        use Val::*;
+        use Instr::*;
+
+        let program = Program {
+            defns: vec![
+                Defn {
+                    code: vec![
+                        Jump(3),
+                        Const(0, 0),
+                        Jump(3),
+                        Const(0, 1),
+                        Jump(-3),
+                        Return(Some(0)),
+                    ],
+                    consts: vec![I(3), I(5)],
+                    local_count: 2,
+                },
+            ],
+            entry_point: 0,
+        };
+        assert_eq!(
+            program.eval(&mut std::io::empty(), &mut std::io::sink()),
+            Ok(I(3))
         );
     }
 
