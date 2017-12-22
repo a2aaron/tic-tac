@@ -73,15 +73,14 @@ impl<'a> Buffer<'a> {
         }
     }
 
-    #[allow(unused)]
-    pub fn first_token_of(&self, tokens: &[&str]) -> ParseSuccess<'a> {
+    pub fn first_token_of(&self, tokens: &[&str]) -> ParseResult<'a, &'a str> {
         if tokens.is_empty() {
-            return Ok(*self);
+            return Ok((*self, ""));
         }
 
         for token in tokens {
             if self.starts_with(token) {
-                return Ok(self.advance(token.len()));
+                return Ok((self.advance(token.len()), &self.text[..token.len()]));
             }
         }
 
@@ -329,9 +328,9 @@ mod test {
             text: "s",
         };
 
-        assert_eq!(input.first_token_of(&["Tokens", "Token"]), Ok(empty));
-        assert_eq!(input.first_token_of(&["Token", "Tokens"]), Ok(s_input));
-        assert_eq!(input.first_token_of(&[]), Ok(input));
+        assert_eq!(input.first_token_of(&["Tokens", "Token"]), Ok((empty, "Tokens")));
+        assert_eq!(input.first_token_of(&["Token", "Tokens"]), Ok((s_input, "Token")));
+        assert_eq!(input.first_token_of(&[]), Ok((input, "")));
 
         // Error messages should be correct
         assert_eq!(

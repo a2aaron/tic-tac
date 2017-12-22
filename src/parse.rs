@@ -127,43 +127,41 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                         // x0 := x1 ...
                         let (buf, b) = buf.addr("x")?;
                         let buf = buf.trim_left();
-                        match buf.text.chars().next() {
+
+                        if buf.text.is_empty() {
+                            // x0 := x1
+                            defn.code.push(Copy(dest, b));
+                            continue;
+                        }
+
+                        let (buf, op) = buf.first_token_of(&["+", "-", "*", "/", "%", "(", "["])?;
+                        match op {
                             // x0 := x1 op x2
-                            Some(op @ '+') | Some(op @ '-') | Some(op @ '*') | Some(op @ '/')
-                            | Some(op @ '%') => {
-                                let (buf, c) = buf.advance(1).addr("x")?;
+                            "+" | "-" | "*" | "/" | "%" => {
+                                let (buf, c) = buf.addr("x")?;
                                 buf.end()?;
                                 defn.code.push(match op {
-                                    '+' => Add(dest, b, c),
-                                    '-' => Sub(dest, b, c),
-                                    '*' => Mul(dest, b, c),
-                                    '/' => Div(dest, b, c),
-                                    '%' => Rem(dest, b, c),
+                                    "+" => Add(dest, b, c),
+                                    "-" => Sub(dest, b, c),
+                                    "*" => Mul(dest, b, c),
+                                    "/" => Div(dest, b, c),
+                                    "%" => Rem(dest, b, c),
                                     _ => unreachable!(),
                                 });
                             }
-                            Some('(') => {
-                                // x0 := x1(x2)
-                                let (buf, c) = buf.advance(1).addr("x")?;
+                            // x0 := x1(x2)
+                            "(" => {
+                                let (buf, c) = buf.addr("x")?;
                                 buf.trim_left().token(")")?.end()?;
                                 defn.code.push(Call(dest, b, c));
                             }
-                            Some('[') => {
-                                // x0 := x1[x2]
-                                let (buf, c) = buf.advance(1).addr("x")?;
+                            // x0 := x1[x2]
+                            "[" => {
+                                let (buf, c) = buf.addr("x")?;
                                 buf.trim_left().token("]")?.end()?;
                                 defn.code.push(IdxTup(dest, b, c));
                             }
-                            None => {
-                                // x0 := x1
-                                defn.code.push(Copy(dest, b));
-                            }
-                            Some(x) => {
-                                return Err(buf.expected(format!(
-                                    "one of '+', '-', '*', '/', '%', '(', or '[', got '{}'",
-                                    x
-                                )))
-                            }
+                            _ => unreachable!(),
                         }
                     }
                 }
