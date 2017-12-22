@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::cmp::{PartialOrd, Ordering};
 
 type Addr = u8;
 type AddrSize = u8;
@@ -25,6 +26,14 @@ pub enum Instr {
     Eq(Addr, Addr, Addr),
     /// a = b != c
     Neq(Addr, Addr, Addr),
+    /// a = b < c
+    Lt(Addr, Addr, Addr),
+    /// a = b > c
+    Gt(Addr, Addr, Addr),
+    /// a = b <= c
+    Leq(Addr, Addr, Addr),
+    /// a = b >= c
+    Geq(Addr, Addr, Addr),
     /// Jumps program execution by n instructions
     Jump(i16),
     /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
@@ -94,6 +103,10 @@ impl Program {
                 &Rem(a, b, c) => locals[a as usize] = (&locals[b as usize] % &locals[c as usize])?,
                 &Eq(a, b, c) => locals[a as usize] = B(&locals[b as usize] == &locals[c as usize]),
                 &Neq(a, b, c) => locals[a as usize] = B(&locals[b as usize] != &locals[c as usize]),
+                &Lt(a, b, c) => locals[a as usize] = B(&locals[b as usize] < &locals[c as usize]),
+                &Gt(a, b, c) => locals[a as usize] = B(&locals[b as usize] > &locals[c as usize]),
+                &Leq(a, b, c) => locals[a as usize] = B(&locals[b as usize] <= &locals[c as usize]),
+                &Geq(a, b, c) => locals[a as usize] = B(&locals[b as usize] >= &locals[c as usize]),
                 &MkTup(a, b, c) => {
                     locals[a as usize] = T(locals[b as usize..c as usize + 1].into())
                 }
@@ -223,6 +236,18 @@ impl<'a> Rem for &'a Val {
             (&I(b), &I(c)) => b.checked_rem(c).ok_or(EvalError {}).map(I),
             (&F(b), &F(c)) => Ok(F(b / c)),
             _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl PartialOrd for Val {
+    fn partial_cmp(&self, other: &Val) -> Option<Ordering> {
+        use Val::*;
+        match (self, other) {
+            (&I(b), &I(c)) => b.partial_cmp(&c),
+            (&F(b), &F(c)) => b.partial_cmp(&c),
+            (&B(b), &B(c)) => b.partial_cmp(&c),
+            _ => None,
         }
     }
 }
