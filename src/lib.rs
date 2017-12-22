@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::cmp::{PartialOrd, Ordering};
 
 type Addr = u8;
 type AddrSize = u8;
@@ -21,6 +22,23 @@ pub enum Instr {
     Div(Addr, Addr, Addr),
     /// a = b % c
     Rem(Addr, Addr, Addr),
+    /// a = b == c
+    Eq(Addr, Addr, Addr),
+    /// a = b != c
+    Neq(Addr, Addr, Addr),
+    /// a = b < c
+    Lt(Addr, Addr, Addr),
+    /// a = b > c
+    Gt(Addr, Addr, Addr),
+    /// a = b <= c
+    Leq(Addr, Addr, Addr),
+    /// a = b >= c
+    Geq(Addr, Addr, Addr),
+    /// Jumps program execution by n instructions
+    Jump(i16),
+    /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
+    /// Note that a must be a boolean, otherwise the program is invalid.
+    CondJump(Addr, i8, i8),
     /// Constructs a tuple from a contiguous range of slots, a = (b..c)
     MkTup(Addr, Addr, Addr),
     /// Indexes a tuple a = b[c]
@@ -83,6 +101,12 @@ impl Program {
                 &Mul(a, b, c) => locals[a as usize] = (&locals[b as usize] * &locals[c as usize])?,
                 &Div(a, b, c) => locals[a as usize] = (&locals[b as usize] / &locals[c as usize])?,
                 &Rem(a, b, c) => locals[a as usize] = (&locals[b as usize] % &locals[c as usize])?,
+                &Eq(a, b, c) => locals[a as usize] = B(&locals[b as usize] == &locals[c as usize]),
+                &Neq(a, b, c) => locals[a as usize] = B(&locals[b as usize] != &locals[c as usize]),
+                &Lt(a, b, c) => locals[a as usize] = B(&locals[b as usize] < &locals[c as usize]),
+                &Gt(a, b, c) => locals[a as usize] = B(&locals[b as usize] > &locals[c as usize]),
+                &Leq(a, b, c) => locals[a as usize] = B(&locals[b as usize] <= &locals[c as usize]),
+                &Geq(a, b, c) => locals[a as usize] = B(&locals[b as usize] >= &locals[c as usize]),
                 &MkTup(a, b, c) => {
                     locals[a as usize] = T(locals[b as usize..c as usize + 1].into())
                 }
@@ -130,9 +154,29 @@ impl Program {
                         _ => return Err(EvalError {}),
                     };
                 }
+                &Jump(a) => {
+                    iptr = sum(iptr, a as isize);
+                    continue;
+                }
+                &CondJump(a, b, c) => {
+                    match locals[a as usize] {
+                        B(true) => iptr = sum(iptr, b as isize),
+                        B(false) => iptr = sum(iptr, c as isize),
+                        _ => return Err(EvalError {}),
+                    }
+                    continue;
+                }
             }
             iptr += 1;
         }
+    }
+}
+
+fn sum(a: usize, b: isize) -> usize {
+    if b > 0 {
+        a + b as usize
+    } else {
+        a - (b.abs() as usize)
     }
 }
 
@@ -196,81 +240,187 @@ impl<'a> Rem for &'a Val {
     }
 }
 
+impl PartialOrd for Val {
+    fn partial_cmp(&self, other: &Val) -> Option<Ordering> {
+        use Val::*;
+        match (self, other) {
+            (&I(b), &I(c)) => b.partial_cmp(&c),
+            (&F(b), &F(c)) => b.partial_cmp(&c),
+            (&B(b), &B(c)) => b.partial_cmp(&c),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn call_return() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        MkTup(0, 0, 1),
-                        Call(0, 1, 0),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(42), I(69)],
-                    local_count: 2,
-                },
-                Defn {
-                    code: vec![
-                        Const(1, 0),
-                        IdxTup(1, 0, 1),
-                        Const(2, 1),
-                        IdxTup(2, 0, 2),
-                        Add(0, 1, 2),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(0), I(1)],
-                    local_count: 3,
-                },
-            ],
-            entry_point: 0,
-        };
-
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(111))
-        );
+    macro_rules! test_program {
+    (
+        name: $name:ident;
+        $(defn {
+            code: [$($instrs:expr),* $(,)*],
+            consts: [$($consts:expr),* $(,)*],
+            local_count: $count:expr,
+        })*
+        result: $result:expr;
+    ) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn test_program() {
+                    use Val::*;
+                    use Instr::*;
+                    let program = Program {
+                        defns: vec![
+                        $(Defn {
+                            code: vec![$($instrs),*],
+                            consts: vec![$($consts),*],
+                            local_count: $count,
+                        },)*],
+                        entry_point: 0,
+                    };
+                    assert_eq!(
+                        program.eval(&mut std::io::empty(), &mut std::io::sink()),
+                        $result
+                    );
+                }
+            }
+        }
     }
 
-    #[test]
-    fn arith() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        Add(0, 0, 1),
-                        Mul(0, 0, 0),
-                        Const(1, 2),
-                        Rem(0, 0, 1),
-                        Const(1, 3),
-                        Div(0, 1, 0),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(1), I(2), I(7), I(15)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: test_cond_jump_false;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
             ],
-            entry_point: 0,
-        };
-
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)))
-        );
+            consts: [B(false), I(3), I(5)],
+            local_count: 3,
+        }
+        result: Ok(I(5));
     }
+
+    test_program! {
+        name: test_cond_jump_true;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
+            ],
+            consts: [B(true), I(3), I(5)],
+            local_count: 3,
+        }
+        result: Ok(I(3));
+    }
+
+    test_program! {
+        name: test_cond_jump_err;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
+            ],
+            consts: [I(0), I(3), I(5)],
+            local_count: 3,
+        }
+        result: Err(EvalError {});
+    }
+
+    test_program! {
+        name: test_jump;
+        defn {
+            code: [
+                Jump(1),
+                Const(0, 0),
+                Const(0, 1),
+                Return(Some(0))
+            ],
+            consts: [I(3), I(5)],
+            local_count: 2,
+        }
+        result: Ok(I(5));
+    }
+
+    test_program! {
+        name: test_backwards_jump;
+        defn {
+            code: [
+                Jump(3),
+                Const(0, 0),
+                Jump(3),
+                Const(0, 1),
+                Jump(-3),
+                Return(Some(0)),
+            ],
+            consts: [I(3), I(5)],
+            local_count: 2,
+        }
+        result: Ok(I(3));
+    }
+
+    test_program! {
+        name: call_return;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                MkTup(0, 0, 1),
+                Call(0, 1, 0),
+                Return(Some(0)),
+            ],
+            consts: [I(42), I(69)],
+            local_count: 2,
+        }
+        defn {
+            code: [
+                Const(1, 0),
+                IdxTup(1, 0, 1),
+                Const(2, 1),
+                IdxTup(2, 0, 2),
+                Add(0, 1, 2),
+                Return(Some(0)),
+            ],
+            consts: [I(0), I(1)],
+            local_count: 3,
+        }
+        result: Ok(I(111));
+    }
+
+    test_program! {
+        name: arith;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Add(0, 0, 1),
+                Mul(0, 0, 0),
+                Const(1, 2),
+                Rem(0, 0, 1),
+                Const(1, 3),
+                Div(0, 1, 0),
+                Return(Some(0)),
+            ],
+            consts: [I(1), I(2), I(7), I(15)],
+            local_count: 3,
+        }
+        result: Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)));
+    }
+
 
     #[test]
     fn io() {
