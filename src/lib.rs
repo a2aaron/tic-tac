@@ -263,7 +263,7 @@ mod tests {
             code: [$($instrs:expr),* $(,)*],
             consts: [$($consts:expr),* $(,)*],
             local_count: $count:expr,
-        },)*
+        })*
         result: $result:expr;
     ) => {
             mod $name {
@@ -278,7 +278,7 @@ mod tests {
                             code: vec![$($instrs),*],
                             consts: vec![$($consts),*],
                             local_count: $count,
-                        })*],
+                        },)*],
                         entry_point: 0,
                     };
                     assert_eq!(
@@ -303,186 +303,124 @@ mod tests {
             ],
             consts: [B(false), I(3), I(5)],
             local_count: 3,
-        },
+        }
         result: Ok(I(5));
     }
 
-    #[test]
-    fn test_cond_jump_true() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        Const(2, 2),
-                        CondJump(0, 1, 2),
-                        Return(Some(1)),
-                        Return(Some(2)),
-                    ],
-                    consts: vec![B(true), I(3), I(5)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: test_cond_jump_true;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
             ],
-            entry_point: 0,
-        };
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(3))
-        );
+            consts: [B(true), I(3), I(5)],
+            local_count: 3,
+        }
+        result: Ok(I(3));
     }
 
-    #[test]
-    fn test_cond_jump_err() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        Const(2, 2),
-                        CondJump(0, 1, 2),
-                        Return(Some(1)),
-                        Return(Some(2)),
-                    ],
-                    consts: vec![I(0), I(3), I(5)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: test_cond_jump_err;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Const(2, 2),
+                CondJump(0, 1, 2),
+                Return(Some(1)),
+                Return(Some(2)),
             ],
-            entry_point: 0,
-        };
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Err(EvalError {})
-        );
+            consts: [I(0), I(3), I(5)],
+            local_count: 3,
+        }
+        result: Err(EvalError {});
     }
 
-    #[test]
-    fn test_jump() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![Jump(1), Const(0, 0), Const(0, 1), Return(Some(0))],
-                    consts: vec![I(3), I(5)],
-                    local_count: 2,
-                },
+    test_program! {
+        name: test_jump;
+        defn {
+            code: [
+                Jump(1),
+                Const(0, 0),
+                Const(0, 1),
+                Return(Some(0))
             ],
-            entry_point: 0,
-        };
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(5))
-        );
+            consts: [I(3), I(5)],
+            local_count: 2,
+        }
+        result: Ok(I(5));
     }
 
-    #[test]
-    fn test_backwards_jump() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Jump(3),
-                        Const(0, 0),
-                        Jump(3),
-                        Const(0, 1),
-                        Jump(-3),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(3), I(5)],
-                    local_count: 2,
-                },
+    test_program! {
+        name: test_backwards_jump;
+        defn {
+            code: [
+                Jump(3),
+                Const(0, 0),
+                Jump(3),
+                Const(0, 1),
+                Jump(-3),
+                Return(Some(0)),
             ],
-            entry_point: 0,
-        };
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(3))
-        );
+            consts: [I(3), I(5)],
+            local_count: 2,
+        }
+        result: Ok(I(3));
     }
 
-    #[test]
-    fn call_return() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        MkTup(0, 0, 1),
-                        Call(0, 1, 0),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(42), I(69)],
-                    local_count: 2,
-                },
-                Defn {
-                    code: vec![
-                        Const(1, 0),
-                        IdxTup(1, 0, 1),
-                        Const(2, 1),
-                        IdxTup(2, 0, 2),
-                        Add(0, 1, 2),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(0), I(1)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: call_return;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                MkTup(0, 0, 1),
+                Call(0, 1, 0),
+                Return(Some(0)),
             ],
-            entry_point: 0,
-        };
-
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(111))
-        );
+            consts: [I(42), I(69)],
+            local_count: 2,
+        }
+        defn {
+            code: [
+                Const(1, 0),
+                IdxTup(1, 0, 1),
+                Const(2, 1),
+                IdxTup(2, 0, 2),
+                Add(0, 1, 2),
+                Return(Some(0)),
+            ],
+            consts: [I(0), I(1)],
+            local_count: 3,
+        }
+        result: Ok(I(111));
     }
 
-    #[test]
-    fn arith() {
-        use Val::*;
-        use Instr::*;
-
-        let program = Program {
-            defns: vec![
-                Defn {
-                    code: vec![
-                        Const(0, 0),
-                        Const(1, 1),
-                        Add(0, 0, 1),
-                        Mul(0, 0, 0),
-                        Const(1, 2),
-                        Rem(0, 0, 1),
-                        Const(1, 3),
-                        Div(0, 1, 0),
-                        Return(Some(0)),
-                    ],
-                    consts: vec![I(1), I(2), I(7), I(15)],
-                    local_count: 3,
-                },
+    test_program! {
+        name: arith;
+        defn {
+            code: [
+                Const(0, 0),
+                Const(1, 1),
+                Add(0, 0, 1),
+                Mul(0, 0, 0),
+                Const(1, 2),
+                Rem(0, 0, 1),
+                Const(1, 3),
+                Div(0, 1, 0),
+                Return(Some(0)),
             ],
-            entry_point: 0,
-        };
-
-        assert_eq!(
-            program.eval(&mut std::io::empty(), &mut std::io::sink()),
-            Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)))
-        );
+            consts: [I(1), I(2), I(7), I(15)],
+            local_count: 3,
+        }
+        result: Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)));
     }
+
 
     #[test]
     fn io() {
