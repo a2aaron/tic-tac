@@ -21,6 +21,10 @@ pub enum Instr {
     Div(Addr, Addr, Addr),
     /// a = b % c
     Rem(Addr, Addr, Addr),
+    /// a = b == c
+    Eq(Addr, Addr, Addr),
+    /// a = b != c
+    Neq(Addr, Addr, Addr),
     /// Jumps program execution by n instructions
     Jump(i16),
     /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
@@ -88,6 +92,8 @@ impl Program {
                 &Mul(a, b, c) => locals[a as usize] = (&locals[b as usize] * &locals[c as usize])?,
                 &Div(a, b, c) => locals[a as usize] = (&locals[b as usize] / &locals[c as usize])?,
                 &Rem(a, b, c) => locals[a as usize] = (&locals[b as usize] % &locals[c as usize])?,
+                &Eq(a, b, c) => locals[a as usize] = B(&locals[b as usize] == &locals[c as usize]),
+                &Neq(a, b, c) => locals[a as usize] = B(&locals[b as usize] != &locals[c as usize]),
                 &MkTup(a, b, c) => {
                     locals[a as usize] = T(locals[b as usize..c as usize + 1].into())
                 }
