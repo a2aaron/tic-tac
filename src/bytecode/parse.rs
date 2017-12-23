@@ -104,6 +104,22 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                     let (buf, addr) = buf.token("write")?.space()?.addr("x")?;
                     buf.end()?;
                     defn.code.push(Write(addr));
+                } else if buf.starts_with("jump") {
+                    // jump 10
+                    let (buf, br): (_, i16) = buf.token("jump")?
+                        .space()?
+                        .parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    buf.end()?;
+                    defn.code.push(Jump(br));
+                } else if buf.starts_with("cond") {
+                    // cond x0 10 20
+                    let (buf, addr) = buf.token("cond")?.space()?.addr("x")?;
+                    let (buf, br1): (_, i8) =
+                        buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    let (buf, br2): (_, i8) =
+                        buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    buf.end()?;
+                    defn.code.push(CondJump(addr, br1, br2));
                 } else {
                     // x0 := ...
                     let (buf, dest) = buf.addr("x")?;
@@ -134,10 +150,12 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                             continue;
                         }
 
-                        let (buf, op) = buf.first_token_of(&["+", "-", "*", "/", "%", "(", "["])?;
+                        let (buf, op) = buf.first_token_of(&[
+                            "+", "-", "*", "/", "%", "==", "!=", "<=", ">=", "<", ">", "(", "["
+                        ])?;
                         match op {
                             // x0 := x1 op x2
-                            "+" | "-" | "*" | "/" | "%" => {
+                            "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<=" | ">=" | "<" | ">" => {
                                 let (buf, c) = buf.addr("x")?;
                                 buf.end()?;
                                 defn.code.push(match op {
@@ -146,6 +164,12 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                                     "*" => Mul(dest, b, c),
                                     "/" => Div(dest, b, c),
                                     "%" => Rem(dest, b, c),
+                                    "==" => Eq(dest, b, c),
+                                    "!=" => Neq(dest, b, c),
+                                    "<=" => Leq(dest, b, c),
+                                    ">=" => Geq(dest, b, c),
+                                    "<" => Lt(dest, b, c),
+                                    ">" => Gt(dest, b, c),
                                     _ => unreachable!(),
                                 });
                             }
