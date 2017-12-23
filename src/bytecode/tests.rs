@@ -5,6 +5,7 @@ use std::io;
 macro_rules! test_program {
 (
     name: $name:ident;
+    text: $text:expr;
     $(defn {
         code: [$($instrs:expr),* $(,)*],
         consts: [$($consts:expr),* $(,)*],
@@ -15,23 +16,34 @@ macro_rules! test_program {
         mod $name {
             use std::io;
             use super::*;
-            #[test]
-            fn test_program() {
+
+            fn program() -> Program {
                 use self::Val::*;
                 use self::Instr::*;
-                let program = Program {
+                Program {
                     defns: vec![
-                    $(Defn {
-                        code: vec![$($instrs),*],
-                        consts: vec![$($consts),*],
-                        local_count: $count,
-                    },)*],
+                        $(Defn {
+                            code: vec![$($instrs),*],
+                            consts: vec![$($consts),*],
+                            local_count: $count,
+                        },)*],
                     entry_point: 0,
-                };
+                }
+            }
+
+            #[test]
+            #[allow(unused)]
+            fn test_eval() {
+                use self::Val::*;
                 assert_eq!(
-                    program.eval(&mut io::empty(), &mut io::sink()),
+                    program().eval(&mut io::empty(), &mut io::sink()),
                     $result
                 );
+            }
+
+            #[test]
+            fn test_parse() {
+                assert_eq!(parse::parse($text), Ok(program()));
             }
         }
     }
@@ -39,6 +51,15 @@ macro_rules! test_program {
 
 test_program! {
     name: test_cond_jump_false;
+    text: r#"
+defn f0 3 : false 3 5
+x0 := k0
+x1 := k1
+x2 := k2
+cond x0 1 2
+return x1
+return x2
+"#;
     defn {
         code: [
             Const(0, 0),
@@ -56,6 +77,15 @@ test_program! {
 
 test_program! {
     name: test_cond_jump_true;
+    text: r#"
+defn f0 3 : true 3 5
+x0 := k0
+x1 := k1
+x2 := k2
+cond x0 1 2
+return x1
+return x2
+"#;
     defn {
         code: [
             Const(0, 0),
@@ -73,6 +103,15 @@ test_program! {
 
 test_program! {
     name: test_cond_jump_err;
+    text: r#"
+defn f0 3 : 0 3 5
+x0 := k0
+x1 := k1
+x2 := k2
+cond x0 1 2
+return x1
+return x2
+"#;
     defn {
         code: [
             Const(0, 0),
@@ -90,6 +129,13 @@ test_program! {
 
 test_program! {
     name: test_jump;
+    text: r#"
+defn f0 2 : 3 5
+jump 1
+x0 := k0
+x0 := k1
+return x0
+"#;
     defn {
         code: [
             Jump(1),
@@ -105,6 +151,15 @@ test_program! {
 
 test_program! {
     name: test_backwards_jump;
+    text: r#"
+defn f0 2 : 3 5
+jump 3
+x0 := k0
+jump 3
+x0 := k1
+jump -3
+return x0
+"#;
     defn {
         code: [
             Jump(3),
@@ -122,6 +177,23 @@ test_program! {
 
 test_program! {
     name: call_return;
+    text: r#"
+defn f0 2 : 42 69 f1
+x0 := k0
+x1 := k1
+x0 := (x0..x1)
+x1 := k2
+x0 := x1(x0)
+return x0
+
+defn f1 3 : 0 1
+x1 := k0
+x1 := x0[x1]
+x2 := k1
+x2 := x0[x2]
+x0 := x1 + x2
+return x0
+"#;
     defn {
         code: [
             Const(0, 0),
@@ -151,6 +223,18 @@ test_program! {
 
 test_program! {
     name: arith;
+    text: r#"
+defn f0 3 : 1 2 7 15
+x0 := k0
+x1 := k1
+x0 := x0 + x1
+x0 := x0 * x0
+x1 := k2
+x0 := x0 % x1
+x1 := k3
+x0 := x1 / x0
+return x0
+"#;
     defn {
         code: [
             Const(0, 0),
@@ -189,4 +273,27 @@ fn io() {
     let mut output = Vec::new();
     assert_eq!(program.eval(&mut input, &mut output), Ok(T(Vec::new())));
     assert_eq!(output, vec![4, 13]);
+
+    assert_eq!(
+        parse::parse(
+            r#"
+defn f0 2 :
+x0 :=read
+x1 := read
+x1 := x1 + x1
+write x1
+write x0
+"#
+        ),
+        Ok(Program {
+            defns: vec![
+                Defn {
+                    code: vec![Read(0), Read(1), Add(1, 1, 1), Write(1), Write(0)],
+                    consts: vec![],
+                    local_count: 2,
+                },
+            ],
+            entry_point: 0,
+        })
+    );
 }
