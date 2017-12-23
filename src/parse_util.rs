@@ -328,8 +328,14 @@ mod test {
             text: "s",
         };
 
-        assert_eq!(input.first_token_of(&["Tokens", "Token"]), Ok((empty, "Tokens")));
-        assert_eq!(input.first_token_of(&["Token", "Tokens"]), Ok((s_input, "Token")));
+        assert_eq!(
+            input.first_token_of(&["Tokens", "Token"]),
+            Ok((empty, "Tokens"))
+        );
+        assert_eq!(
+            input.first_token_of(&["Token", "Tokens"]),
+            Ok((s_input, "Token"))
+        );
         assert_eq!(input.first_token_of(&[]), Ok((input, "")));
 
         // Error messages should be correct

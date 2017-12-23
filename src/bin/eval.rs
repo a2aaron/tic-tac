@@ -10,7 +10,7 @@ fn main() {
         file.read_to_string(&mut text).unwrap();
         text
     };
-    let program = tic_tac::parse::parse(&text).expect("code to parse");
+    let program = tic_tac::bytecode::parse::parse(&text).expect("code to parse");
     let res = program.eval(&mut std::io::stdin(), &mut std::io::stdout());
     println!();
     println!("RESULT: {:?}", res);

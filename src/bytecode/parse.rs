@@ -49,7 +49,7 @@ impl<'a> ParseExt<'a> for Buffer<'a> {
 }
 
 pub fn parse(text: &str) -> Result<Program, ParseError> {
-    use Instr::*;
+    use bytecode::Instr::*;
 
     let mut defns = Vec::new();
     for (row, line) in text.lines().enumerate() {
@@ -182,8 +182,8 @@ mod test {
 
     #[test]
     fn test_parse() {
-        use Val::*;
-        use Instr::*;
+        use bytecode::Val::*;
+        use bytecode::Instr::*;
 
         assert_eq!(
             parse(
