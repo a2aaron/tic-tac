@@ -1,15 +1,16 @@
 #[cfg(test)]
 mod tests;
+pub mod parse;
 
 use std::io::{Read, Write};
 use std::ops::{Add, Div, Mul, Rem, Sub};
-use std::cmp::{PartialOrd, Ordering};
+use std::cmp::{Ordering, PartialOrd};
 
 type Addr = u8;
 type AddrSize = u8;
 type FnId = u16;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instr {
     /// Loads a constant a = k[b]
     Const(Addr, Addr),
@@ -67,6 +68,7 @@ pub enum Val {
     C(FnId),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Defn {
     consts: Vec<Val>,
     code: Vec<Instr>,
@@ -74,6 +76,7 @@ pub struct Defn {
 }
 
 /// A piece of compiled code that's ready to be evaluated.
+#[derive(Debug, PartialEq)]
 pub struct Program {
     defns: Vec<Defn>,
     entry_point: FnId,
