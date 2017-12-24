@@ -151,11 +151,13 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                         }
 
                         let (buf, op) = buf.first_token_of(&[
-                            "+", "-", "*", "/", "%", "==", "!=", "<=", ">=", "<", ">", "(", "["
+                            "+", "-", "*", "/", "%", "&", "|", "^", "==", "!=", "<=", ">=", "<",
+                            ">", "(", "[",
                         ])?;
                         match op {
                             // x0 := x1 op x2
-                            "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<=" | ">=" | "<" | ">" => {
+                            "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "==" | "!=" | "<="
+                            | ">=" | "<" | ">" => {
                                 let (buf, c) = buf.addr("x")?;
                                 buf.end()?;
                                 defn.code.push(match op {
@@ -164,13 +166,16 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                                     "*" => Mul(dest, b, c),
                                     "/" => Div(dest, b, c),
                                     "%" => Rem(dest, b, c),
+                                    "&" => And(dest, b, c),
+                                    "|" => Orr(dest, b, c),
+                                    "^" => Xor(dest, b, c),
                                     "==" => Eq(dest, b, c),
                                     "!=" => Neq(dest, b, c),
                                     "<=" => Leq(dest, b, c),
                                     ">=" => Geq(dest, b, c),
                                     "<" => Lt(dest, b, c),
                                     ">" => Gt(dest, b, c),
-                                    _ => unreachable!(),
+                                    _ => unreachable!("invalid ops"),
                                 });
                             }
                             // x0 := x1(x2)
@@ -185,7 +190,7 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                                 buf.trim_left().token("]")?.end()?;
                                 defn.code.push(IdxTup(dest, b, c));
                             }
-                            _ => unreachable!(),
+                            _ => unreachable!("unmentioned op"),
                         }
                     }
                 }

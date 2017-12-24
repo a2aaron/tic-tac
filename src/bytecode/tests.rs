@@ -17,6 +17,7 @@ macro_rules! test_program {
             use std::io;
             use super::*;
 
+            #[allow(unused)]
             fn program() -> Program {
                 use self::Val::*;
                 use self::Instr::*;
@@ -125,6 +126,49 @@ return x2
         local_count: 3,
     }
     result: Err(EvalError {});
+}
+
+test_program! {
+    name: test_bitwise;
+    text: r#"
+defn f0 5 : 1 2 4 -1 -8
+x0 := k0
+x1 := k1
+# 3
+x0 := x0 | x1
+x2 := k2
+# 7
+x1 := x0 | x2
+# 3
+x2 := x0 & x1
+x0 := x2 == x0
+x4 := k3
+x3 := x1 ^ x4
+x4 := k4
+x1 := x3 == x4
+x0 := x0 & x1
+return x0
+"#;
+    defn {
+        code: [
+            Const(0, 0),
+            Const(1, 1),
+            Orr(0, 0, 1),
+            Const(2, 2),
+            Orr(1, 0, 2),
+            And(2, 0, 1),
+            Eq(0, 2, 0),
+            Const(4, 3),
+            Xor(3, 1, 4),
+            Const(4, 4),
+            Eq(1, 3, 4),
+            And(0, 0, 1),
+            Return(Some(0)),
+        ],
+        consts: [I(1), I(2), I(4), I(-1), I(-8)],
+        local_count: 5,
+    }
+    result: Ok(B(true));
 }
 
 test_program! {
