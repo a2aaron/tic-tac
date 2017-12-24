@@ -3,7 +3,7 @@ mod tests;
 pub mod parse;
 
 use std::io::{Read, Write};
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Sub};
 use std::cmp::{Ordering, PartialOrd};
 
 type Addr = u8;
@@ -26,6 +26,16 @@ pub enum Instr {
     Div(Addr, Addr, Addr),
     /// a = b % c
     Rem(Addr, Addr, Addr),
+    /// a = b & c
+    ///
+    /// This acts as a boolean and as well as a bitwise and.
+    And(Addr, Addr, Addr),
+    /// a = b | c
+    ///
+    /// This acts as a boolean or as well as a bitwise or.
+    Orr(Addr, Addr, Addr),
+    /// a = b ^ c
+    Xor(Addr, Addr, Addr),
     /// a = b == c
     Eq(Addr, Addr, Addr),
     /// a = b != c
@@ -107,6 +117,9 @@ impl Program {
                 &Mul(a, b, c) => locals[a as usize] = (&locals[b as usize] * &locals[c as usize])?,
                 &Div(a, b, c) => locals[a as usize] = (&locals[b as usize] / &locals[c as usize])?,
                 &Rem(a, b, c) => locals[a as usize] = (&locals[b as usize] % &locals[c as usize])?,
+                &And(a, b, c) => locals[a as usize] = (&locals[b as usize] & &locals[c as usize])?,
+                &Orr(a, b, c) => locals[a as usize] = (&locals[b as usize] | &locals[c as usize])?,
+                &Xor(a, b, c) => locals[a as usize] = (&locals[b as usize] ^ &locals[c as usize])?,
                 &Eq(a, b, c) => locals[a as usize] = B(&locals[b as usize] == &locals[c as usize]),
                 &Neq(a, b, c) => locals[a as usize] = B(&locals[b as usize] != &locals[c as usize]),
                 &Lt(a, b, c) => locals[a as usize] = B(&locals[b as usize] < &locals[c as usize]),
@@ -241,6 +254,41 @@ impl<'a> Rem for &'a Val {
         match (self, rhs) {
             (&I(b), &I(c)) => b.checked_rem(c).ok_or(EvalError {}).map(I),
             (&F(b), &F(c)) => Ok(F(b / c)),
+            _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl<'a> BitAnd for &'a Val {
+    type Output = Result<Val, EvalError>;
+    fn bitand(self, rhs: &Val) -> Self::Output {
+        use self::Val::*;
+        match (self, rhs) {
+            (&I(b), &I(c)) => Ok(I(b & c)),
+            (&B(b), &B(c)) => Ok(B(b && c)),
+            _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl<'a> BitOr for &'a Val {
+    type Output = Result<Val, EvalError>;
+    fn bitor(self, rhs: &Val) -> Self::Output {
+        use self::Val::*;
+        match (self, rhs) {
+            (&I(b), &I(c)) => Ok(I(b | c)),
+            (&B(b), &B(c)) => Ok(B(b || c)),
+            _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl<'a> BitXor for &'a Val {
+    type Output = Result<Val, EvalError>;
+    fn bitxor(self, rhs: &Val) -> Self::Output {
+        use self::Val::*;
+        match (self, rhs) {
+            (&I(b), &I(c)) => Ok(I(b ^ c)),
             _ => Err(EvalError {}),
         }
     }
