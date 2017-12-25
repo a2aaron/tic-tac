@@ -42,9 +42,9 @@ trait ParseExt<'a> {
 
 impl<'a> ParseExt<'a> for Buffer<'a> {
     fn addr(self, prefix: &str) -> ParseResult<'a, Addr> {
-        self.trim_left()
-            .token(prefix)?
-            .parse_til(|c| !c.is_digit(10))
+        self.trim_left().token(prefix)?.parse_til(
+            |c| !c.is_digit(10),
+        )
     }
 }
 
@@ -106,9 +106,9 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                     defn.code.push(Write(addr));
                 } else if buf.starts_with("jump") {
                     // jump 10
-                    let (buf, br): (_, i16) = buf.token("jump")?
-                        .space()?
-                        .parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    let (buf, br): (_, i16) = buf.token("jump")?.space()?.parse_til(|c| {
+                        !(c.is_digit(10) || c == '-')
+                    })?;
                     buf.end()?;
                     defn.code.push(Jump(br));
                 } else if buf.starts_with("cond") {
@@ -150,14 +150,30 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                             continue;
                         }
 
-                        let (buf, op) = buf.first_token_of(&[
-                            "+", "-", "*", "/", "%", "&", "|", "^", "==", "!=", "<=", ">=", "<",
-                            ">", "(", "[",
-                        ])?;
+                        let (buf, op) = buf.first_token_of(
+                            &[
+                                "+",
+                                "-",
+                                "*",
+                                "/",
+                                "%",
+                                "&",
+                                "|",
+                                "^",
+                                "==",
+                                "!=",
+                                "<=",
+                                ">=",
+                                "<",
+                                ">",
+                                "(",
+                                "[",
+                            ],
+                        )?;
                         match op {
                             // x0 := x1 op x2
-                            "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "==" | "!=" | "<="
-                            | ">=" | "<" | ">" => {
+                            "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "==" | "!=" |
+                            "<=" | ">=" | "<" | ">" => {
                                 let (buf, c) = buf.addr("x")?;
                                 buf.end()?;
                                 defn.code.push(match op {

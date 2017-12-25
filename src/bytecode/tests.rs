@@ -327,7 +327,7 @@ x1 := read
 x1 := x1 + x1
 write x1
 write x0
-"#
+"#,
         ),
         Ok(Program {
             defns: vec![
