@@ -43,6 +43,33 @@ fn test_compile_raw_lit() {
 }
 
 #[test]
+fn test_compile_var() {
+    use bytecode::Instr::*;
+
+    let name = Name {
+        name: "hello".into(),
+        id: 0,
+    };
+    let mut ctx = FunctionCtx::new();
+    let code = vec![
+        Stmt::Declare(name.clone()),
+        Stmt::RawExpr(Expr::Var(name.clone())),
+    ];
+
+    let result = vec![];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![],
+            free_reg: 1,
+            max_reg: 1,
+        }
+    );
+}
+
+#[test]
 fn test_compile_declare() {
     use bytecode::Instr::*;
     use bytecode::Val::*;

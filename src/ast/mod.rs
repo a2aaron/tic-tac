@@ -86,6 +86,10 @@ impl FunctionCtx {
     }
 
     fn pop_tmp(&mut self, addr: Addr) {
+        // If the variable is not temp, do nothing
+        if (addr as usize) < self.vars.len() {
+            return;
+        }
         assert_eq!(self.free_reg, addr + 1);
         self.free_reg = addr;
     }
@@ -110,7 +114,7 @@ impl FunctionCtx {
                 let instr = Instr::Const(reg, self.get_const(val));
                 (reg, vec![instr])
             }
-            Var(ref name) => unimplemented!(),
+            Var(ref name) => (self.vars[name], vec![]),
             Unop(ref op, ref arg) => unimplemented!(),
             Binop(ref op, ref left, ref right) => unimplemented!(),
             Call(ref func, ref args) => unimplemented!(),
@@ -126,7 +130,7 @@ impl FunctionCtx {
                 // @Todo: Should we have a separate method for this?
                 let reg = self.push_tmp();
                 self.vars.insert(name.clone(), reg);
-                Vec::new()
+                vec![]
             }
             RawExpr(ref expr) => {
                 let (reg, code) = self.compile_expr(expr);
@@ -143,7 +147,11 @@ impl FunctionCtx {
         }
     }
 
-    pub fn compile(&mut self, _code: &[Stmt<Name>]) -> Vec<Instr> {
-        unimplemented!()
+    pub fn compile(&mut self, code: &[Stmt<Name>]) -> Vec<Instr> {
+        let mut result = Vec::new();
+        for stmt in code {
+            result.append(&mut self.compile_stmt(stmt));
+        }
+        result
     }
 }
