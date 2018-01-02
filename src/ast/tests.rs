@@ -92,3 +92,31 @@ fn test_compile_declare() {
         }
     );
 }
+
+#[test]
+fn test_compile_assign() {
+    use bytecode::Instr::*;
+    use bytecode::Val::*;
+    let name = Name {
+        name: "x42".into(),
+        id: 0,
+    };
+
+    let code = vec![
+        Stmt::Declare(name.clone()),
+        Stmt::Assign(name.clone(), Expr::Lit(I(69))),
+    ];
+    let mut ctx = FunctionCtx::new();
+
+    let result = vec![Const(1, 0), Copy(0, 1)];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![I(69)],
+            free_reg: 2,
+            max_reg: 2,
+        }
+    );
+}

@@ -137,7 +137,12 @@ impl FunctionCtx {
                 self.pop_tmp(reg);
                 code
             }
-            Assign(ref name, ref expr) => unimplemented!(),
+            Assign(ref name, ref expr) => {
+                let dest = self.vars[name];
+                let (reg, mut code) = self.compile_expr(expr);
+                code.push(Instr::Copy(dest, reg));
+                code
+            }
             If(ref cond, ref true_block, ref false_block) => unimplemented!(),
             While(ref cond, ref block) => unimplemented!(),
             Continue => unimplemented!(),
