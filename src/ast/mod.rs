@@ -18,6 +18,7 @@ pub enum Expr<N> {
 #[derive(Debug)]
 pub enum Stmt<N> {
     Declare(N),
+    RawExpr(Expr<N>),
     Assign(N, Expr<N>),
     If(Expr<N>, Vec<Stmt<N>>, Vec<Stmt<N>>),
     While(Expr<N>, Vec<Stmt<N>>),
@@ -126,6 +127,11 @@ impl FunctionCtx {
                 let reg = self.push_tmp();
                 self.vars.insert(name.clone(), reg);
                 Vec::new()
+            }
+            RawExpr(ref expr) => {
+                let (reg, code) = self.compile_expr(expr);
+                self.pop_tmp(reg);
+                code
             }
             Assign(ref name, ref expr) => unimplemented!(),
             If(ref cond, ref true_block, ref false_block) => unimplemented!(),
