@@ -1,10 +1,11 @@
-use bytecode::{Val, Instr};
+use std::collections::HashMap;
+use bytecode::{Val, Instr, Addr};
 
 #[cfg(test)]
 mod tests;
 
 #[derive(Debug)]
-enum Expr<N> {
+pub enum Expr<N> {
     Lit(Val),
     Var(N),
     Unop(Unop, Box<Expr<N>>),
@@ -15,31 +16,26 @@ enum Expr<N> {
 }
 
 #[derive(Debug)]
-enum Stmt {
+pub enum Stmt<N> {
     Declare(N),
     Assign(N, Expr<N>),
-    If(Expr<N>, Box<Vec<Stmt>>),
-    While(Expr<N>, Box<Vec<Stmt>>),
-    For(Box<Stmt>, Expr<N>, Box<Stmt>, Vec<Stmt>),
+    If(Expr<N>, Box<Vec<Stmt<N>>>),
+    While(Expr<N>, Box<Vec<Stmt<N>>>),
+    For(Box<Stmt<N>>, Expr<N>, Box<Stmt<N>>, Vec<Stmt<N>>),
     Continue,
     Break,
     Return(Expr<N>),
-    Defn(Vec<Stmt>),
-}
-
-fn compile(statement: Stmt) -> Vec<Instr> {
-    unimplemented!()
-
+    Defn(Vec<Stmt<N>>),
 }
 
 #[derive(Debug)]
-enum Unop {
+pub enum Unop {
     Negate,
     Not,
 }
 
 #[derive(Debug)]
-enum Binop {
+pub enum Binop {
     Add,
     Sub,
     Mul,
@@ -56,8 +52,41 @@ enum Binop {
     Neq,
 }
 
-#[derive(Debug)]
-struct N {
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct Name {
     name: String,
-    // register: usize,
+    id: usize,
+}
+
+#[derive(Debug)]
+pub struct FunctionCtx {
+    vars: HashMap<Name, Addr>,
+    consts: Vec<Val>,
+    free_reg: Addr,
+    max_reg: Addr,
+}
+
+type Block<N> = Vec<Stmt<N>>;
+
+impl FunctionCtx {
+    fn push_tmp(&mut self) -> Addr {
+        unimplemented!()
+    }
+
+    fn pop_tmp(&mut self, _addr: Addr) {
+        unimplemented!()
+    }
+    /// Returns a tuple containing the register with the result of the expr
+    /// and a Vect of Instrs that generate the expression
+    pub fn compile_expr(&mut self, _expr: Expr<Name>) -> (Addr, Vec<Instr>) {
+        unimplemented!()
+    }
+
+    pub fn compile_stmt(&mut self, _stmt: Stmt<Name>) -> Vec<Instr> {
+        unimplemented!()
+    }
+
+    pub fn compile(&mut self, _code: Block<Name>) -> Vec<Instr> {
+        unimplemented!()
+    }
 }
