@@ -19,13 +19,12 @@ pub enum Expr<N> {
 pub enum Stmt<N> {
     Declare(N),
     Assign(N, Expr<N>),
-    If(Expr<N>, Box<Vec<Stmt<N>>>),
-    While(Expr<N>, Box<Vec<Stmt<N>>>),
-    For(Box<Stmt<N>>, Expr<N>, Box<Stmt<N>>, Vec<Stmt<N>>),
+    If(Expr<N>, Vec<Stmt<N>>, Vec<Stmt<N>>),
+    While(Expr<N>, Vec<Stmt<N>>),
     Continue,
     Break,
     Return(Expr<N>),
-    Defn(Vec<Stmt<N>>),
+    Defn(Vec<N>, Vec<Stmt<N>>),
 }
 
 #[derive(Debug)]
@@ -52,13 +51,13 @@ pub enum Binop {
     Neq,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Name {
     name: String,
     id: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FunctionCtx {
     vars: HashMap<Name, Addr>,
     consts: Vec<Val>,
@@ -119,8 +118,23 @@ impl FunctionCtx {
         }
     }
 
-    pub fn compile_stmt(&mut self, _stmt: &Stmt<Name>) -> Vec<Instr> {
-        unimplemented!()
+    pub fn compile_stmt(&mut self, stmt: &Stmt<Name>) -> Vec<Instr> {
+        use self::Stmt::*;
+        match *stmt {
+            Declare(ref name) => {
+                // @Todo: Should we have a separate method for this?
+                let reg = self.push_tmp();
+                self.vars.insert(name.clone(), reg);
+                Vec::new()
+            }
+            Assign(ref name, ref expr) => unimplemented!(),
+            If(ref cond, ref true_block, ref false_block) => unimplemented!(),
+            While(ref cond, ref block) => unimplemented!(),
+            Continue => unimplemented!(),
+            Break => unimplemented!(),
+            Return(ref expr) => unimplemented!(),
+            Defn(ref params, ref body) => unimplemented!(),
+        }
     }
 
     pub fn compile(&mut self, _code: &[Stmt<Name>]) -> Vec<Instr> {
