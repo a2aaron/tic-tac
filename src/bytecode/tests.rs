@@ -1,7 +1,5 @@
 use super::*;
 
-use std::io;
-
 macro_rules! test_program {
 (
     name: $name:ident;
@@ -11,10 +9,11 @@ macro_rules! test_program {
         consts: [$($consts:expr),* $(,)*],
         local_count: $count:expr,
     })*
+    input: $input:expr;
+    output: $output:expr;
     result: $result:expr;
 ) => {
         mod $name {
-            use std::io;
             use super::*;
 
             #[allow(unused)]
@@ -36,10 +35,13 @@ macro_rules! test_program {
             #[allow(unused)]
             fn test_eval() {
                 use self::Val::*;
+                let mut input = ::std::io::Cursor::new($input);
+                let mut output = Vec::new();
                 assert_eq!(
-                    program().eval(&mut io::empty(), &mut io::sink()),
+                    program().eval(&mut input, &mut output),
                     $result
                 );
+                assert_eq!(output, $output);
             }
 
             #[test]
@@ -73,6 +75,8 @@ return x2
         consts: [B(false), I(3), I(5)],
         local_count: 3,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(5));
 }
 
@@ -99,6 +103,8 @@ return x2
         consts: [B(true), I(3), I(5)],
         local_count: 3,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(3));
 }
 
@@ -125,6 +131,8 @@ return x2
         consts: [I(0), I(3), I(5)],
         local_count: 3,
     }
+    input: b"";
+    output: b"";
     result: Err(EvalError {});
 }
 
@@ -168,6 +176,8 @@ return x0
         consts: [I(1), I(2), I(4), I(-1), I(-8)],
         local_count: 5,
     }
+    input: b"";
+    output: b"";
     result: Ok(B(true));
 }
 
@@ -190,6 +200,8 @@ return x0
         consts: [I(3), I(5)],
         local_count: 2,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(5));
 }
 
@@ -216,6 +228,8 @@ return x0
         consts: [I(3), I(5)],
         local_count: 2,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(3));
 }
 
@@ -262,6 +276,8 @@ return x0
         consts: [I(0), I(1)],
         local_count: 3,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(111));
 }
 
@@ -294,6 +310,8 @@ return x0
         consts: [I(1), I(2), I(7), I(15)],
         local_count: 3,
     }
+    input: b"";
+    output: b"";
     result: Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)));
 }
 
@@ -340,52 +358,35 @@ defn f1 3 :
         consts: [],
         local_count: 3,
     }
+    input: b"ab";
+    output: b"ba";
     result: Ok(T(vec![]));
 }
 
-#[test]
-fn io() {
-    use self::Val::*;
-    use self::Instr::*;
-
-    let program = Program {
-        defns: vec![
-            Defn {
-                code: vec![Read(0), Read(1), Add(1, 1, 1), Write(1), Write(0)],
-                consts: vec![],
-                local_count: 2,
-            },
-        ],
-        entry_point: 0,
-    };
-
-    let mut input = io::Cursor::new([13, 2]);
-    let mut output = Vec::new();
-    assert_eq!(program.eval(&mut input, &mut output), Ok(T(Vec::new())));
-    assert_eq!(output, vec![4, 13]);
-
-    assert_eq!(
-        parse::parse(
-            r#"
+test_program! {
+    name: read_write;
+    text: r#"
 defn f0 2 :
-x0 :=read
-x1 := read
-x1 := x1 + x1
-write x1
-write x0
-"#,
-        ),
-        Ok(Program {
-            defns: vec![
-                Defn {
-                    code: vec![Read(0), Read(1), Add(1, 1, 1), Write(1), Write(0)],
-                    consts: vec![],
-                    local_count: 2,
-                },
-            ],
-            entry_point: 0,
-        })
-    );
+    x0 :=read
+    x1 := read
+    x1 := x1 + x1
+    write x1
+    write x0
+"#;
+    defn {
+        code: [
+            Read(0),
+            Read(1),
+            Add(1, 1, 1),
+            Write(1),
+            Write(0),
+        ],
+        consts: [],
+        local_count: 2,
+    }
+    input: &[13, 2];
+    output: &[4, 13];
+    result: Ok(T(vec![]));
 }
 
 #[test]
