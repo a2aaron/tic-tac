@@ -28,13 +28,13 @@ pub enum Stmt<N> {
     Defn(Vec<N>, Vec<Stmt<N>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unop {
     Negate,
     Not,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Binop {
     Add,
     Sub,
@@ -115,7 +115,35 @@ impl FunctionCtx {
             }
             Var(ref name) => (self.vars[name], vec![]),
             Unop(ref op, ref arg) => unimplemented!(),
-            Binop(ref op, ref left, ref right) => unimplemented!(),
+            Binop(op, ref left, ref right) => {
+                let reg = self.push_tmp();
+                let (left_dest, mut left_code) = self.compile_expr(left);
+                let (right_dest, mut right_code) = self.compile_expr(right);
+                use self::Binop::*;
+                let instr = match op {
+                    Add => Instr::Add,
+                    Sub => Instr::Sub,
+                    Mul => Instr::Mul,
+                    Div => Instr::Div,
+                    Rem => Instr::Rem,
+                    And => Instr::And,
+                    Orr => Instr::Orr,
+                    Xor => Instr::Xor,
+                    Gt => Instr::Gt,
+                    Lt => Instr::Lt,
+                    Geq => Instr::Geq,
+                    Leq => Instr::Leq,
+                    Eq => Instr::Eq,
+                    Neq => Instr::Neq,
+                }(reg, left_dest, right_dest);
+
+                self.pop_tmp(right_dest);
+                self.pop_tmp(left_dest);
+
+                left_code.append(&mut right_code);
+                left_code.push(instr);
+                (reg, left_code)
+            }
             Call(ref func, ref args) => unimplemented!(),
             Index(ref tup, ref idx) => unimplemented!(),
             Mktup(ref parts) => unimplemented!(),
@@ -140,6 +168,9 @@ impl FunctionCtx {
                 let dest = self.vars[name];
                 let (reg, mut code) = self.compile_expr(expr);
                 code.push(Instr::Copy(dest, reg));
+
+                self.pop_tmp(reg);
+
                 code
             }
             If(ref cond, ref true_block, ref false_block) => unimplemented!(),

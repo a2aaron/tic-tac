@@ -67,6 +67,39 @@ fn test_compile_var() {
 }
 
 #[test]
+fn test_compile_binop() {
+    use bytecode::Instr::*;
+    use bytecode::Val::*;
+    use self::Expr::*;
+    use self::Binop;
+    let name = Name { id: 0 };
+    let code = vec![
+        Stmt::Declare(name),
+        Stmt::Assign(
+            name,
+            Binop(Binop::Add, Box::new(Var(name)), Box::new(Lit(I(69))))
+        ),
+    ];
+    let mut ctx = FunctionCtx::new();
+
+    // decl x0
+    // x2 := k0
+    // x1 := x0 + x2
+    // x0 := x1
+    let result = vec![Const(2, 0), Add(1, 0, 2), Copy(0, 1)];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![I(69)],
+            free_reg: 1,
+            max_reg: 3,
+        }
+    );
+}
+
+#[test]
 fn test_compile_declare() {
     use bytecode::Instr::*;
     use bytecode::Val::*;
@@ -103,7 +136,7 @@ fn test_compile_assign() {
         FunctionCtx {
             vars: vec![(name, 0)].into_iter().collect(),
             consts: vec![I(69)],
-            free_reg: 2,
+            free_reg: 1,
             max_reg: 2,
         }
     );
