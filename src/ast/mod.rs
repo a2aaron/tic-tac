@@ -52,9 +52,8 @@ pub enum Binop {
     Neq,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Name {
-    name: String,
     id: usize,
 }
 

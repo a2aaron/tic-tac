@@ -46,10 +46,7 @@ fn test_compile_raw_lit() {
 fn test_compile_var() {
     use bytecode::Instr::*;
 
-    let name = Name {
-        name: "hello".into(),
-        id: 0,
-    };
+    let name = Name { id: 0 };
     let mut ctx = FunctionCtx::new();
     let code = vec![
         Stmt::Declare(name.clone()),
@@ -73,11 +70,8 @@ fn test_compile_var() {
 fn test_compile_declare() {
     use bytecode::Instr::*;
     use bytecode::Val::*;
-    let name = Name {
-        name: "x42".into(),
-        id: 0,
-    };
-    let stmt = Stmt::Declare(name.clone());
+    let name = Name { id: 0 };
+    let stmt = Stmt::Declare(name);
     let mut ctx = FunctionCtx::new();
 
     let result = vec![];
@@ -97,15 +91,9 @@ fn test_compile_declare() {
 fn test_compile_assign() {
     use bytecode::Instr::*;
     use bytecode::Val::*;
-    let name = Name {
-        name: "x42".into(),
-        id: 0,
-    };
+    let name = Name { id: 0 };
 
-    let code = vec![
-        Stmt::Declare(name.clone()),
-        Stmt::Assign(name.clone(), Expr::Lit(I(69))),
-    ];
+    let code = vec![Stmt::Declare(name), Stmt::Assign(name, Expr::Lit(I(69)))];
     let mut ctx = FunctionCtx::new();
 
     let result = vec![Const(1, 0), Copy(0, 1)];
