@@ -130,9 +130,12 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                         buf.end()?;
                         defn.code.push(Const(dest, k));
                     } else if buf.starts_with("(") {
-                        // x0 := (x1..x2)
+                        // x0 := (x1; #)
                         let (buf, b) = buf.trim_left().token("(")?.addr("x")?;
-                        let (buf, c) = buf.trim_left().token("..")?.addr("x")?;
+                        let (buf, c) = buf.trim_left()
+                            .token(";")?
+                            .trim_left()
+                            .parse_til(|c| !(c.is_digit(10)))?;
                         buf.trim_left().token(")")?.end()?;
                         defn.code.push(MkTup(dest, b, c));
                     } else if buf.starts_with("read") {

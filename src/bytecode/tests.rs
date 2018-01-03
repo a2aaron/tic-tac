@@ -225,7 +225,7 @@ test_program! {
 defn f0 2 : 42 69 f1
 x0 := k0
 x1 := k1
-x0 := (x0..x1)
+x0 := (x0; 2)
 x1 := k2
 x0 := x1(x0)
 return x0
@@ -242,7 +242,7 @@ return x0
         code: [
             Const(0, 0),
             Const(1, 1),
-            MkTup(0, 0, 1),
+            MkTup(0, 0, 2),
             Const(1, 2),
             Call(0, 1, 0),
             Return(Some(0)),
@@ -355,7 +355,7 @@ fn test_format() {
                         code: vec![
                             Const(0, 0),
                             Const(1, 1),
-                            MkTup(0, 0, 1),
+                            MkTup(0, 0, 2),
                             Const(1, 2),
                             Call(0, 1, 0),
                             Return(Some(0)),
@@ -382,7 +382,7 @@ fn test_format() {
         r#"defn f0 2 : 42 69 f1
     x0 := k0
     x1 := k1
-    x0 := (x0..x1)
+    x0 := (x0; 2)
     x1 := k2
     x0 := x1(x0)
     return x0

@@ -54,8 +54,9 @@ pub enum Instr {
     /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
     /// Note that a must be a boolean, otherwise the program is invalid.
     CondJump(Addr, i8, i8),
-    /// Constructs a tuple from a contiguous range of slots, a = (b..c)
-    MkTup(Addr, Addr, Addr),
+    /// Constructs a tuple, a = (b; c)
+    /// Takes a contiguous range of c slots starting at b, a = (_; 0) builds the empty tuple.
+    MkTup(Addr, Addr, u8),
     /// Indexes a tuple a = b[c]
     IdxTup(Addr, Addr, Addr),
     /// Calls a function, a = b(c).
@@ -92,7 +93,7 @@ impl fmt::Display for Instr {
             Geq(a, b, c) => write!(fmt, "x{} := x{} >= x{}", a, b, c),
             Jump(off) => write!(fmt, "jump {}", off),
             CondJump(a, b, c) => write!(fmt, "cond x{} {} {}", a, b, c),
-            MkTup(a, b, c) => write!(fmt, "x{} := (x{}..x{})", a, b, c),
+            MkTup(a, b, c) => write!(fmt, "x{} := (x{}; {})", a, b, c),
             IdxTup(a, b, c) => write!(fmt, "x{} := x{}[x{}]", a, b, c),
             Call(a, b, c) => write!(fmt, "x{} := x{}(x{})", a, b, c),
             Return(None) => write!(fmt, "return"),
@@ -207,7 +208,7 @@ impl Program {
                 &Leq(a, b, c) => locals[a as usize] = B(&locals[b as usize] <= &locals[c as usize]),
                 &Geq(a, b, c) => locals[a as usize] = B(&locals[b as usize] >= &locals[c as usize]),
                 &MkTup(a, b, c) => {
-                    locals[a as usize] = T(locals[b as usize..c as usize + 1].into())
+                    locals[a as usize] = T(locals[b as usize..(b + c) as usize].into())
                 }
                 &IdxTup(a, t, i) => {
                     locals[a as usize] = match (&locals[t as usize], &locals[i as usize]) {
