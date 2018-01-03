@@ -297,6 +297,52 @@ return x0
     result: Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)));
 }
 
+test_program! {
+    name: untup;
+    text: r#"
+defn f0 2 : f1
+  x0 := read
+  x1 := read
+  x0 := (x0; 2)
+  x1 := k0
+  x0 := x1(x0)
+  (x0; 2) := x0
+  write x0
+  write x1
+
+defn f1 3 :
+  (x0; 2) := x0
+  x2 := x0
+  x0 := (x1; 2)
+  return x0
+"#;
+    defn {
+        code: [
+            Read(0),
+            Read(1),
+            MkTup(0, 0, 2),
+            Const(1, 0),
+            Call(0, 1, 0),
+            UnTup(0, 2, 0),
+            Write(0),
+            Write(1),
+        ],
+        consts: [C(1)],
+        local_count: 2,
+    }
+    defn {
+        code: [
+            UnTup(0, 2, 0),
+            Copy(2, 0),
+            MkTup(0, 1, 2),
+            Return(Some(0)),
+        ],
+        consts: [],
+        local_count: 3,
+    }
+    result: Ok(T(vec![]));
+}
+
 #[test]
 fn io() {
     use self::Val::*;
