@@ -100,6 +100,50 @@ fn test_compile_binop() {
 }
 
 #[test]
+fn test_compile_mktup() {
+    use bytecode::Instr::*;
+    use bytecode::Val::*;
+    use self::Expr::*;
+    use self::Binop;
+    let name = Name { id: 0 };
+    let code = vec![
+        Stmt::Declare(name),
+        Stmt::Assign(
+            name,
+            Expr::Mktup(vec![
+                Lit(I(42)),
+                Lit(B(true)),
+                Binop(Binop::Add, Box::new(Lit(I(6))), Box::new(Lit(I(7))))
+            ]),
+        ),
+    ];
+    let mut ctx = FunctionCtx::new();
+
+    let result = vec![
+        // register 0 reserved by x
+        // register 1 reserved due to assignment (inefficient!)
+        Const(2, 0), // 42
+        Const(3, 1), // true
+        // result of 5 + 6 stored in register 4
+        Const(5, 2), // 6
+        Const(6, 3), // 7
+        Add(4, 5, 6),
+        MkTup(1, 2, 4),
+        Copy(0, 1), // x0 := x1
+    ];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![I(42), B(true), I(6), I(7)],
+            free_reg: 1,
+            max_reg: 7,
+        }
+    );
+}
+
+#[test]
 fn test_compile_declare() {
     use bytecode::Instr::*;
     use bytecode::Val::*;

@@ -146,7 +146,38 @@ impl FunctionCtx {
             }
             Call(ref func, ref args) => unimplemented!(),
             Index(ref tup, ref idx) => unimplemented!(),
-            Mktup(ref parts) => unimplemented!(),
+            Mktup(ref parts) => {
+                let reg = self.push_tmp();
+                let mut code = vec![];
+                let mut part_addrs = vec![];
+                let mut start_addr = None;
+                // @TODO: any way to make start_addr not mutable?
+                for (i, part) in parts.iter().enumerate() {
+                    let (part_dest, mut part_code) = self.compile_expr(part);
+                    code.append(&mut part_code);
+                    part_addrs.push(part_dest);
+
+                    if i == 0 {
+                        start_addr = Some(part_dest);
+                    }
+                }
+
+                assert!(start_addr.is_some());
+                let start_addr = start_addr.unwrap();
+                // Minus one required because MkTup is inclusive at the ends,
+                // If we want to make a tuple out of registers 2, 3, 4, then
+                // that means we have the starting addr of 2, and 3 parts.
+                // Thus, the end addr is 2 + 3 - 1 = 4
+                let end_addr = (start_addr + parts.len() as u8 - 1) as u8;
+
+                // Must do this backwards due to the highest registers being popped first
+                for addr in part_addrs.iter().rev() {
+                    self.pop_tmp(*addr);
+                }
+                code.push(Instr::MkTup(reg, start_addr, end_addr));
+
+                (reg, code)
+            },
         }
     }
 

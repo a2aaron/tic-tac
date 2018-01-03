@@ -54,6 +54,7 @@ pub enum Instr {
     /// Note that a must be a boolean, otherwise the program is invalid.
     CondJump(Addr, i8, i8),
     /// Constructs a tuple from a contiguous range of slots, a = (b..c)
+    /// Note: MkTup is inclusive at both end points
     MkTup(Addr, Addr, Addr),
     /// Indexes a tuple a = b[c]
     IdxTup(Addr, Addr, Addr),
