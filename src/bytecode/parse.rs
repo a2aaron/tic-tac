@@ -139,6 +139,16 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                         // x0 := read
                         buf.token("read")?.end()?;
                         defn.code.push(Read(dest));
+                    } else if buf.starts_with("!") || buf.starts_with("-") {
+                        // x0 := unop x1
+                        let (buf, op) = buf.first_token_of(&["!", "-"])?;
+                        let (buf, b) = buf.trim_left().addr("x")?;
+                        buf.end()?;
+                        defn.code.push(match op {
+                            "!" => Not(dest, b),
+                            "-" => Neg(dest, b),
+                            _ => unreachable!("invalid unary op"),
+                        });
                     } else {
                         // x0 := x1 ...
                         let (buf, b) = buf.addr("x")?;

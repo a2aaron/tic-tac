@@ -297,6 +297,32 @@ return x0
     result: Ok(I(15 / (((1 + 2) * (1 + 2)) % 7)));
 }
 
+test_program! {
+    name: unop;
+    text: r#"
+defn f0 2 : 0 1
+x0 := k0
+x1 := k1
+x0 := !x0
+x1 := -x1
+x0 := x0 == x1
+return x0
+"#;
+    defn {
+        code: [
+            Const(0, 0),
+            Const(1, 1),
+            Not(0, 0),
+            Neg(1, 1),
+            Eq(0, 0, 1),
+            Return(Some(0)),
+        ],
+        consts: [I(0), I(1)],
+        local_count: 2,
+    }
+    result: Ok(B(true));
+}
+
 #[test]
 fn io() {
     use self::Val::*;
