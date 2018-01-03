@@ -173,7 +173,23 @@ impl FunctionCtx {
 
                 code
             }
-            If(ref cond, ref true_block, ref false_block) => unimplemented!(),
+            If(ref cond, ref true_block, ref false_block) => {
+                use bytecode::Instr::*;
+
+                let (cond_dest, mut code) = self.compile_expr(cond);
+                // @TODO: improve short /long jump code
+                code.push(CondJump(cond_dest, 2, 1));
+                self.pop_tmp(cond_dest);
+
+                let mut true_code = self.compile(true_block);
+                let mut false_code = self.compile(false_block);
+
+                code.push(Jump(true_code.len() as i16 + 2));
+                code.append(&mut true_code);
+                code.push(Jump(false_code.len() as i16 + 1));
+                code.append(&mut false_code);
+                code
+            },
             While(ref cond, ref block) => unimplemented!(),
             Continue => unimplemented!(),
             Break => unimplemented!(),
