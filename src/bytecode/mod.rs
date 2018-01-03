@@ -2,6 +2,7 @@
 mod tests;
 pub mod parse;
 
+use std::fmt;
 use std::io::{Read, Write};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Sub};
 use std::cmp::{Ordering, PartialOrd};
@@ -69,6 +70,39 @@ pub enum Instr {
     Write(Addr),
 }
 
+impl fmt::Display for Instr {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        use self::Instr::*;
+        match *self {
+            Const(a, b) => write!(fmt, "x{} := k{}", a, b),
+            Copy(a, b) => write!(fmt, "x{} := x{}", a, b),
+            Add(a, b, c) => write!(fmt, "x{} := x{} + x{}", a, b, c),
+            Sub(a, b, c) => write!(fmt, "x{} := x{} - x{}", a, b, c),
+            Mul(a, b, c) => write!(fmt, "x{} := x{} * x{}", a, b, c),
+            Div(a, b, c) => write!(fmt, "x{} := x{} / x{}", a, b, c),
+            Rem(a, b, c) => write!(fmt, "x{} := x{} % x{}", a, b, c),
+            And(a, b, c) => write!(fmt, "x{} := x{} & x{}", a, b, c),
+            Orr(a, b, c) => write!(fmt, "x{} := x{} | x{}", a, b, c),
+            Xor(a, b, c) => write!(fmt, "x{} := x{} ^ x{}", a, b, c),
+            Eq(a, b, c) => write!(fmt, "x{} := x{} == x{}", a, b, c),
+            Neq(a, b, c) => write!(fmt, "x{} := x{} != x{}", a, b, c),
+            Lt(a, b, c) => write!(fmt, "x{} := x{} < x{}", a, b, c),
+            Gt(a, b, c) => write!(fmt, "x{} := x{} > x{}", a, b, c),
+            Leq(a, b, c) => write!(fmt, "x{} := x{} <= x{}", a, b, c),
+            Geq(a, b, c) => write!(fmt, "x{} := x{} >= x{}", a, b, c),
+            Jump(off) => write!(fmt, "jump {}", off),
+            CondJump(a, b, c) => write!(fmt, "cond x{} {} {}", a, b, c),
+            MkTup(a, b, c) => write!(fmt, "x{} := (x{}..x{})", a, b, c),
+            IdxTup(a, b, c) => write!(fmt, "x{} := x{}[x{}]", a, b, c),
+            Call(a, b, c) => write!(fmt, "x{} := x{}(x{})", a, b, c),
+            Return(None) => write!(fmt, "return"),
+            Return(Some(a)) => write!(fmt, "return x{}", a),
+            Read(a) => write!(fmt, "x{} := read", a),
+            Write(a) => write!(fmt, "write x{}", a),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     B(bool),
@@ -76,6 +110,33 @@ pub enum Val {
     F(f64),
     T(Vec<Val>),
     C(FnId),
+}
+
+impl fmt::Display for Val {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        use self::Val::*;
+        match *self {
+            B(b) => write!(fmt, "{}", b),
+            I(i) => write!(fmt, "{}", i),
+            F(f) => {
+                let text = format!("{}", f);
+                if text.contains('.') {
+                    write!(fmt, "{}", text)
+                } else {
+                    write!(fmt, "{}.0", text)
+                }
+            }
+            T(ref t) => write!(
+                fmt,
+                "({})",
+                t.iter()
+                    .map(|x| format!("{}", x))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            C(c) => write!(fmt, "f{}", c),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -90,6 +151,25 @@ pub struct Defn {
 pub struct Program {
     defns: Vec<Defn>,
     entry_point: FnId,
+}
+
+impl fmt::Display for Program {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        for (i, defn) in self.defns.iter().enumerate() {
+            if i != 0 {
+                writeln!(fmt, "\n")?;
+            }
+            let consts = defn.consts
+                .iter()
+                .map(|k| format!(" {}", k))
+                .collect::<String>();
+            write!(fmt, "defn f{} {} :{}", i, defn.local_count, consts)?;
+            for line in &defn.code {
+                write!(fmt, "\n    {}", line)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Represents failures during execution.

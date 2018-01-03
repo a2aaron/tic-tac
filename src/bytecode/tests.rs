@@ -341,3 +341,58 @@ write x0
         })
     );
 }
+
+#[test]
+fn test_format() {
+    use self::Val::*;
+    use self::Instr::*;
+    assert_eq!(
+        format!(
+            "{}",
+            Program {
+                defns: vec![
+                    Defn {
+                        code: vec![
+                            Const(0, 0),
+                            Const(1, 1),
+                            MkTup(0, 0, 1),
+                            Const(1, 2),
+                            Call(0, 1, 0),
+                            Return(Some(0)),
+                        ],
+                        consts: vec![I(42), I(69), C(1)],
+                        local_count: 2,
+                    },
+                    Defn {
+                        code: vec![
+                            Const(1, 0),
+                            IdxTup(1, 0, 1),
+                            Const(2, 1),
+                            IdxTup(2, 0, 2),
+                            Add(0, 1, 2),
+                            Return(Some(0)),
+                        ],
+                        consts: vec![I(0), I(1)],
+                        local_count: 3,
+                    },
+                ],
+                entry_point: 0,
+            }
+        ),
+        r#"defn f0 2 : 42 69 f1
+    x0 := k0
+    x1 := k1
+    x0 := (x0..x1)
+    x1 := k2
+    x0 := x1(x0)
+    return x0
+
+defn f1 3 : 0 1
+    x1 := k0
+    x1 := x0[x1]
+    x2 := k1
+    x2 := x0[x2]
+    x0 := x1 + x2
+    return x0"#
+    );
+}
