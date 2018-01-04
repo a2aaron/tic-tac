@@ -42,9 +42,9 @@ trait ParseExt<'a> {
 
 impl<'a> ParseExt<'a> for Buffer<'a> {
     fn addr(self, prefix: &str) -> ParseResult<'a, Addr> {
-        self.trim_left().token(prefix)?.parse_til(
-            |c| !c.is_digit(10),
-        )
+        self.trim_left()
+            .token(prefix)?
+            .parse_til(|c| !c.is_digit(10))
     }
 }
 
@@ -106,20 +106,32 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                     defn.code.push(Write(addr));
                 } else if buf.starts_with("jump") {
                     // jump 10
-                    let (buf, br): (_, i16) = buf.token("jump")?.space()?.parse_til(|c| {
-                        !(c.is_digit(10) || c == '-')
-                    })?;
+                    let (buf, br) = buf.token("jump")?
+                        .space()?
+                        .parse_til(|c| !(c.is_digit(10) || c == '-'))?;
                     buf.end()?;
                     defn.code.push(Jump(br));
                 } else if buf.starts_with("cond") {
                     // cond x0 10 20
                     let (buf, addr) = buf.token("cond")?.space()?.addr("x")?;
-                    let (buf, br1): (_, i8) =
-                        buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
-                    let (buf, br2): (_, i8) =
-                        buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    let (buf, br1) = buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
+                    let (buf, br2) = buf.space()?.parse_til(|c| !(c.is_digit(10) || c == '-'))?;
                     buf.end()?;
                     defn.code.push(CondJump(addr, br1, br2));
+                } else if buf.starts_with("(") {
+                    let (buf, dest) = buf.token("(")?.trim_left().addr("x")?;
+                    let (buf, len) = buf.trim_left()
+                        .token(";")?
+                        .trim_left()
+                        .parse_til(|c| !c.is_digit(10))?;
+                    let (buf, src) = buf.trim_left()
+                        .token(")")?
+                        .trim_left()
+                        .token(":=")?
+                        .trim_left()
+                        .addr("x")?;
+                    buf.end()?;
+                    defn.code.push(UnTup(dest, len, src));
                 } else {
                     // x0 := ...
                     let (buf, dest) = buf.addr("x")?;
@@ -130,9 +142,12 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                         buf.end()?;
                         defn.code.push(Const(dest, k));
                     } else if buf.starts_with("(") {
-                        // x0 := (x1..x2)
+                        // x0 := (x1; #)
                         let (buf, b) = buf.trim_left().token("(")?.addr("x")?;
-                        let (buf, c) = buf.trim_left().token("..")?.addr("x")?;
+                        let (buf, c) = buf.trim_left()
+                            .token(";")?
+                            .trim_left()
+                            .parse_til(|c| !c.is_digit(10))?;
                         buf.trim_left().token(")")?.end()?;
                         defn.code.push(MkTup(dest, b, c));
                     } else if buf.starts_with("read") {
@@ -150,30 +165,14 @@ pub fn parse(text: &str) -> Result<Program, ParseError> {
                             continue;
                         }
 
-                        let (buf, op) = buf.first_token_of(
-                            &[
-                                "+",
-                                "-",
-                                "*",
-                                "/",
-                                "%",
-                                "&",
-                                "|",
-                                "^",
-                                "==",
-                                "!=",
-                                "<=",
-                                ">=",
-                                "<",
-                                ">",
-                                "(",
-                                "[",
-                            ],
-                        )?;
+                        let (buf, op) = buf.first_token_of(&[
+                            "+", "-", "*", "/", "%", "&", "|", "^", "==", "!=", "<=", ">=", "<",
+                            ">", "(", "[",
+                        ])?;
                         match op {
                             // x0 := x1 op x2
-                            "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "==" | "!=" |
-                            "<=" | ">=" | "<" | ">" => {
+                            "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "==" | "!=" | "<="
+                            | ">=" | "<" | ">" => {
                                 let (buf, c) = buf.addr("x")?;
                                 buf.end()?;
                                 defn.code.push(match op {
