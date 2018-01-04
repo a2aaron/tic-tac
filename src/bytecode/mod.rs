@@ -58,8 +58,12 @@ pub enum Instr {
     /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
     /// Note that a must be a boolean, otherwise the program is invalid.
     CondJump(Addr, i8, i8),
-    /// Constructs a tuple from a contiguous range of slots, a = (b..c)
-    MkTup(Addr, Addr, Addr),
+    /// Constructs a tuple, a = (b; c)
+    /// Takes a contiguous range of c slots starting at b, a = (_; 0) builds the empty tuple.
+    MkTup(Addr, Addr, u8),
+    /// Destructs a tuple (a; b) = c
+    /// Unpacks c into a contiguous range of b slots starting at a.
+    UnTup(Addr, u8, Addr),
     /// Indexes a tuple a = b[c]
     IdxTup(Addr, Addr, Addr),
     /// Calls a function, a = b(c).
@@ -98,7 +102,8 @@ impl fmt::Display for Instr {
             Not(a, b) => write!(fmt, "x{} := !x{}", a, b),
             Jump(off) => write!(fmt, "jump {}", off),
             CondJump(a, b, c) => write!(fmt, "cond x{} {} {}", a, b, c),
-            MkTup(a, b, c) => write!(fmt, "x{} := (x{}..x{})", a, b, c),
+            MkTup(a, b, c) => write!(fmt, "x{} := (x{}; {})", a, b, c),
+            UnTup(a, b, c) => write!(fmt, "(x{}; {}) := x{}", a, b, c),
             IdxTup(a, b, c) => write!(fmt, "x{} := x{}[x{}]", a, b, c),
             Call(a, b, c) => write!(fmt, "x{} := x{}(x{})", a, b, c),
             Return(None) => write!(fmt, "return"),
@@ -215,7 +220,14 @@ impl Program {
                 &Neg(a, b) => locals[a as usize] = (-&locals[b as usize])?,
                 &Not(a, b) => locals[a as usize] = (!&locals[b as usize])?,
                 &MkTup(a, b, c) => {
-                    locals[a as usize] = T(locals[b as usize..c as usize + 1].into())
+                    locals[a as usize] = T(locals[b as usize..(b + c) as usize].into())
+                }
+                &UnTup(a, b, c) => {
+                    let c = match locals[c as usize] {
+                        T(ref c) if c.len() == b as usize => c.clone(),
+                        _ => return Err(EvalError {}),
+                    };
+                    locals[a as usize..(a + b) as usize].clone_from_slice(&c[..])
                 }
                 &IdxTup(a, t, i) => {
                     locals[a as usize] = match (&locals[t as usize], &locals[i as usize]) {
