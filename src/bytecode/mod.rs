@@ -4,7 +4,7 @@ pub mod parse;
 
 use std::fmt;
 use std::io::{Read, Write};
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Sub};
 use std::cmp::{Ordering, PartialOrd};
 
 type Addr = u8;
@@ -49,6 +49,10 @@ pub enum Instr {
     Leq(Addr, Addr, Addr),
     /// a = b >= c
     Geq(Addr, Addr, Addr),
+    /// a = -b
+    Neg(Addr, Addr),
+    /// a = !b
+    Not(Addr, Addr),
     /// Jumps program execution by n instructions
     Jump(i16),
     /// Jumps program execution by n instructions if a is true, else it jumps by m instructions
@@ -94,6 +98,8 @@ impl fmt::Display for Instr {
             Gt(a, b, c) => write!(fmt, "x{} := x{} > x{}", a, b, c),
             Leq(a, b, c) => write!(fmt, "x{} := x{} <= x{}", a, b, c),
             Geq(a, b, c) => write!(fmt, "x{} := x{} >= x{}", a, b, c),
+            Neg(a, b) => write!(fmt, "x{} := -x{}", a, b),
+            Not(a, b) => write!(fmt, "x{} := !x{}", a, b),
             Jump(off) => write!(fmt, "jump {}", off),
             CondJump(a, b, c) => write!(fmt, "cond x{} {} {}", a, b, c),
             MkTup(a, b, c) => write!(fmt, "x{} := (x{}; {})", a, b, c),
@@ -211,6 +217,8 @@ impl Program {
                 &Gt(a, b, c) => locals[a as usize] = B(&locals[b as usize] > &locals[c as usize]),
                 &Leq(a, b, c) => locals[a as usize] = B(&locals[b as usize] <= &locals[c as usize]),
                 &Geq(a, b, c) => locals[a as usize] = B(&locals[b as usize] >= &locals[c as usize]),
+                &Neg(a, b) => locals[a as usize] = (-&locals[b as usize])?,
+                &Not(a, b) => locals[a as usize] = (!&locals[b as usize])?,
                 &MkTup(a, b, c) => {
                     locals[a as usize] = T(locals[b as usize..(b + c) as usize].into())
                 }
@@ -381,6 +389,30 @@ impl<'a> BitXor for &'a Val {
         use self::Val::*;
         match (self, rhs) {
             (&I(b), &I(c)) => Ok(I(b ^ c)),
+            _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl<'a> Neg for &'a Val {
+    type Output = Result<Val, EvalError>;
+    fn neg(self) -> Self::Output {
+        use self::Val::*;
+        match self {
+            &I(a) => Ok(I(-a)),
+            &F(a) => Ok(F(-a)),
+            _ => Err(EvalError {}),
+        }
+    }
+}
+
+impl<'a> Not for &'a Val {
+    type Output = Result<Val, EvalError>;
+    fn not(self) -> Self::Output {
+        use self::Val::*;
+        match self {
+            &I(a) => Ok(I(!a)),
+            &B(a) => Ok(B(!a)),
             _ => Err(EvalError {}),
         }
     }
