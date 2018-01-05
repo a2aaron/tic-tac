@@ -176,6 +176,51 @@ fn test_compile_empty_tuple() {
 }
 
 #[test]
+fn test_compile_index() {
+        use bytecode::Instr::*;
+    use bytecode::Val::*;
+    use self::Expr::*;
+    use self::Binop;
+    let name = Name { id: 0 };
+    let code = vec![
+        Stmt::Declare(name),
+        Stmt::Assign(
+            name,
+            Index(
+                Box::new(Mktup(vec![
+                    Lit(I(42)),
+                    Lit(B(true)),
+                ])),
+                Box::new(Lit(I(1)))
+            ),
+        ),
+    ];
+    let mut ctx = FunctionCtx::new();
+
+    let result = vec![
+        // register 0 reserved by x
+        // register 1 reserved due to assignment (inefficient!)
+        // register 2 reserved by the tuple
+        Const(3, 0), // 42
+        Const(4, 1), // true
+        MkTup(2, 3, 2),
+        Const(3, 2), // 1
+        IdxTup(1, 2, 3), // x1 := x2[x3]
+        Copy(0, 1), // x0 := x1
+    ];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![I(42), B(true), I(1)],
+            free_reg: 1,
+            max_reg: 5,
+        }
+    );
+}
+
+#[test]
 fn test_compile_declare() {
     use bytecode::Instr::*;
     use bytecode::Val::*;

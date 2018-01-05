@@ -145,7 +145,19 @@ impl FunctionCtx {
                 (reg, left_code)
             }
             Call(ref func, ref args) => unimplemented!(),
-            Index(ref tup, ref idx) => unimplemented!(),
+            Index(ref tup, ref idx) => {
+                let reg = self.push_tmp();
+
+                let (tup_dest, mut tup_code) = self.compile_expr(tup);
+                let (idx_dest, mut idx_code) = self.compile_expr(idx);
+
+                tup_code.append(&mut idx_code);
+                tup_code.push(Instr::IdxTup(reg, tup_dest, idx_dest));
+
+                self.pop_tmp(idx_dest);
+                self.pop_tmp(tup_dest);
+                (reg, tup_code)
+            },
             Mktup(ref parts) => {
                 let reg = self.push_tmp();
                 let mut code = vec![];
