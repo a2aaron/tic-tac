@@ -114,7 +114,19 @@ impl FunctionCtx {
                 (reg, vec![instr])
             }
             Var(ref name) => (self.vars[name], vec![]),
-            Unop(ref op, ref arg) => unimplemented!(),
+            Unop(op, ref arg) => {
+                let reg = self.push_tmp();
+                let (arg_dest, mut arg_code) = self.compile_expr(arg);
+                use self::Unop::*;
+                let instr = match op {
+                    Negate => Instr::Neg,
+                    Not => Instr::Not,
+                }(reg, arg_dest);
+                self.pop_tmp(arg_dest);
+
+                arg_code.push(instr);
+                (reg, arg_code)
+            },
             Binop(op, ref left, ref right) => {
                 let reg = self.push_tmp();
                 let (left_dest, mut left_code) = self.compile_expr(left);

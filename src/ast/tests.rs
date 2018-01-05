@@ -67,6 +67,39 @@ fn test_compile_var() {
 }
 
 #[test]
+fn test_compile_unop() {
+    use bytecode::Instr::*;
+    use bytecode::Val::*;
+    use self::Expr::*;
+    use self::Unop;
+    let name = Name { id: 0 };
+    let code = vec![
+        Stmt::Declare(name),
+        Stmt::Assign(
+            name,
+            Unop(Unop::Not, Box::new(Lit(B(false))))
+        ),
+    ];
+    let mut ctx = FunctionCtx::new();
+
+    // decl x0
+    // x2 := k0
+    // x1 := !x2
+    // x0 := x1
+    let result = vec![Const(2, 0), Not(1, 2), Copy(0, 1)];
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![B(false)],
+            free_reg: 1,
+            max_reg: 3,
+        }
+    );
+}
+
+#[test]
 fn test_compile_binop() {
     use bytecode::Instr::*;
     use bytecode::Val::*;
