@@ -338,3 +338,51 @@ fn test_compile_if() {
         }
     );
 }
+
+#[test]
+fn test_compile_while() {
+    use bytecode::Instr::*;
+    use bytecode::Val::*;
+    use self::Stmt::*;
+    use self::Expr::*;
+
+    let name = Name { id: 0 };
+    let code = vec![
+        Declare(name),
+        Assign(name, Lit(I(42))),
+        While(
+            Binop(self::Binop::Eq, Box::new(Var(name)), Box::new(Lit(I(69)))),
+            vec![RawExpr(Lit(I(1337)))],
+        ),
+    ];
+    let mut ctx = FunctionCtx::new();
+    /*
+    x = 42
+    while (x == 69) {
+        1337;
+    }
+    */
+    let result = vec![
+        // slot 0 reserved to x
+        Const(1, 0), // k0 (42)
+        Copy(0, 1), // x0 = k0 (42)
+        // slot 1 reserved to conditional result
+        Const(2, 1), // k1 (69)
+        Eq(1, 0, 2), // x0 == 69
+        CondJump(1, 2, 1),
+        Jump(3), // jump over code
+        Const(2, 2), // k2 (1337)
+        Jump(-5), // jump back to the conditional check
+    ];
+
+    assert_eq!(ctx.compile(&code), result);
+    assert_eq!(
+        ctx,
+        FunctionCtx {
+            vars: vec![(name, 0)].into_iter().collect(),
+            consts: vec![I(42), I(69), I(1337)],
+            free_reg: 1,
+            max_reg: 3,
+        }
+    );
+}

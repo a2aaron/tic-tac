@@ -234,7 +234,27 @@ impl FunctionCtx {
                 code.append(&mut false_code);
                 code
             },
-            While(ref cond, ref block) => unimplemented!(),
+            While(ref cond, ref block) => {
+                let mut code = vec![];
+                let (cond_dest, mut cond_code) = self.compile_expr(cond);
+                let mut loop_code = self.compile(block);
+                self.pop_tmp(cond_dest);
+                let cond_len = cond_code.len();
+                let loop_len = loop_code.len();
+                /* The way the below works is
+                 * [cond] length n
+                 * condJump 2 1 // jump into the code if true, or to the exit jump if false
+                 * jump m + 2 // jump past [loop] and the backwards jump
+                 * [loop] length m
+                 * jump -(n + m + 2) // jump back to [cond], add 2 for the cond and exit jumps
+                 */
+                code.append(&mut cond_code);
+                code.push(Instr::CondJump(cond_dest, 2, 1));
+                code.push(Instr::Jump(loop_code.len() as i16 + 2));
+                code.append(&mut loop_code);
+                code.push(Instr::Jump(-((cond_len + loop_len + 2) as i16)));
+                code
+            },
             Continue => unimplemented!(),
             Break => unimplemented!(),
             Return(ref expr) => unimplemented!(),
