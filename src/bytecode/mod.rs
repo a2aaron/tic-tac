@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Not, Rem, Sub};
 use std::cmp::{Ordering, PartialOrd};
 
-type Addr = u8;
+pub type Addr = u8;
 type AddrSize = u8;
 type FnId = u16;
 
